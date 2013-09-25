@@ -1,5 +1,8 @@
-data/mfcc/
-data/phone_instances/
-data/score/
-data/test.mfc
-data/train
+data/*
+obj/*
+lib/*
+exp/*
+train
+calc-acoustic-similarity
+test
+extract

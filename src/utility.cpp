@@ -55,3 +55,30 @@ string join(const vector<string>& arr, string token) {
   str += arr[arr.size() - 1];
   return str;
 }
+
+std::string exec(std::string cmd) {
+  FILE* pipe = popen(cmd.c_str(), "r");
+  if (!pipe)
+    return "ERROR";
+
+  char buffer[128];
+  std::string result = "";
+
+  try {
+    while(!feof(pipe)) {
+      if(fgets(buffer, 128, pipe) != NULL)
+	result += buffer;
+    }
+  } catch (...) {
+    std::cerr << "[Warning] Exception caught in " << __FUNCTION__ << endl;
+  }
+
+  pclose(pipe);
+  return result;
+}
+
+namespace bash {
+  vector<string> ls(string path) {
+    return split(exec("ls " + path), '\n');
+  }
+}

@@ -9,7 +9,7 @@ function guard() {
 guard
 
 
-PHONES=`cat phones.txt | awk '{print $1"\n"}'`
+PHONES=`cat data/phones.txt | awk '{print $1"\n"}'`
 
 counter=0
 for p in $PHONES; do
@@ -17,6 +17,7 @@ for p in $PHONES; do
 
 
   FOLDER=data/mfcc/$p
+  mkdir -p data/train/list/
   LIST=data/train/list/$counter.list
   let counter=counter+1
   rm -f $LIST

@@ -1,95 +1,127 @@
-#include <string>
 #include <iostream>
+#include <string>
 #include <color.h>
-#include <cfloat>
+#include <array.h>
 
 #include <cdtw.h>
-// #include <libutility/include/std_common.h>
-// #include <libutility/include/thread_util.h>
-// #include <libutility/include/utility.h>
-// #include <libdtw/include/dtw_parm.h>
-// #include <libdtw/include/dtw_util.h>
-
-using std::cout;
-using DtwUtil::DtwParm;
-using DtwUtil::SegDtwRunner;
-using DtwUtil::FrameDtwRunner;
-using DtwUtil::SlopeConDtwRunner;
-using DtwUtil::FreeFrameDtwRunner;
 using namespace std;
-using DtwUtil::CumulativeDtwRunner;
 
-float dtw(string f1, string f2, bool printOrNot = true);
+#ifdef DEBUG
+#define debug(token) {cout << #token " = " << token << endl;}
+#else
+#define debug(token) {}
+#endif
+
+#define function []
+
+template<typename T>
+int test(T&& callback) {
+  int x  = 10;
+  std::forward<T>(callback)(x);
+}
+
+string bool2str(bool b);
+
+template<typename T>
+int DTW(int x, int y, T&& fn) {
+  return std::forward<T>(fn)(x, y);
+}
 
 int main (int argc, char* argv[]) {
 
-  string q_fname = (argc >= 2) ? string(argv[1]) : "test.mfc";
-  string d_fname = (argc >= 3) ? string(argv[2]) : "test.mfc";
+  Array<string> full("full");
+  Array<string> done("done");
 
-  dtw(q_fname, d_fname, false);
+  int counter = 0;
+  foreach (i, full) {
+    if (!exists("/share/preparsed_files/SI_word_test/mul-sim/" + full[i] + ".mul-sim")) {
+      cout << full[i] << endl;
+      ++counter;
+    }
+  }
+
+  cout << "counter = " << counter << endl;
+
+  return 0;
+
+  int m = 10, n = 20;
+  int diag = -1;
+  int d = DTW(m, n, [=] (int x, int y) {
+    return x*y*diag;
+  });
+
+  debug(d);
+
+  auto f = [](int n) {
+    return [=](int x) mutable {
+      return pow(x, n);
+    };
+  };
+
+  test(function (int x) { 
+      cout << x << endl;
+      });
+
+  auto f1 = f(5);
+  auto f2 = f(10);
+  debug(f1(2));
+  debug(f2(2));
+
+  int arr[5] = {1, 2, 3, 4, 5};
+  for (auto &x: arr)
+    debug(x);
+
+  return 0;
+
+  LLDouble x(1, LLDouble::LOGDOMAIN);
+  LLDouble y(2, LLDouble::LOGDOMAIN);
+  LLDouble z(3, LLDouble::LOGDOMAIN);
+
+  // sum will be 3.40760596444438 in log-domain
+  LLDouble sum = x + y + z;
+
+  cout << "----------- "GREEN"LOG Domain"COLOREND" -----------" << endl;
+  cout << "  sum          = " << sum << endl;
+  cout << "  sum.getVal() = " << sum.getVal() << endl;
+  cout << "----------- "GREEN"LIN Domain"COLOREND" -----------" << endl;
+  cout << "  sum          = " << sum.to_lindomain() << endl;
+  cout << "  sum.getVal() = " << sum.getVal() << endl << endl;
+
+  double a=1, b=5, c=5;
+  double min = SMIN::eval(a, b, c);
+  cout << "-------- "GREEN"Smoothed Minimum"COLOREND" --------" << endl;
+  cout << " smoothed min  = " << min << endl << endl;
+
   /*
-  // Cumulative-based DTW //
-  hypo_score.clear(); hypo_bound.clear();
-  q_parm.LoadParm(q_fname);
-  d_parm.LoadParm(d_fname);
-  CumulativeDtwRunner cdtw_runner(DtwUtil::euclinorm);
-  FrameDtwRunner::nsnippet_ = 10;
-  cdtw_runner.InitDtw(&hypo_score,
-                       &hypo_bound, // (start, end) frame 
-                       NULL, // do not backtracking 
-                       &q_parm,
-                       &d_parm,
-                       NULL, // full time span
-                       NULL); // full time span
+  LLDouble z;
+  cout << "z = " << z << endl;
 
-  cout << "\33[34m-- Cumulative DTW --\33[0m\n";
-  cdtw_runner.DTW();
+  // Initialize lin
+  LLDouble a(1e-307, LLDouble::LOGDOMAIN);
+  cout << "a = " << a << endl;
+
+  LLDouble b(1.1e-307, LLDouble::LOGDOMAIN);
+  cout << "b = " << b << endl;
+
+  cout << "a == b " << bool2str(a == b) << endl;
+  cout << "a <  b " << bool2str(a <  b) << endl;
+  cout << "a <= b " << bool2str(a <= b) << endl;
+  cout << "a >  b " << bool2str(a >  b) << endl;
+  cout << "a >= b " << bool2str(a >= b) << endl;
+
+  b = LLDouble();
+  try {
+    cout << "b - a = " << b - a << endl;
+  }
+  catch (...) {
+    cerr << RED "[Exception]" COLOREND " Caught in " << __FUNCTION__ << " at line: " << __LINE__ << ORANGE " <== " COLOREND " Nagative number in linear domain CANNOT be mapped into LOG-domain. (i.e. log(-10) = ?? IT'S a IMAGINARY number )" << endl;
+  }
   */
+
 
   return 0;
 }
 
-float dtw(string q_fname, string d_fname, bool printOrNot) {
-  vector<float> hypo_score;
-  vector<pair<int, int> > hypo_bound;
-  DtwParm q_parm, d_parm;
-
-  hypo_score.clear(); hypo_bound.clear();
-  q_parm.LoadParm(q_fname);
-  d_parm.LoadParm(d_fname);
-  SlopeConDtwRunner scdtw_runner(DtwUtil::euclinorm);
-  FrameDtwRunner::nsnippet_ = 10;
-  scdtw_runner.InitDtw(&hypo_score,
-                       &hypo_bound, /* (start, end) frame */
-                       NULL, /* do not backtracking */
-                       &q_parm,
-                       &d_parm,
-                       NULL, /* full time span */
-                       NULL); /* full time span */
-  scdtw_runner.DTW();
-
-  if (printOrNot)
-    cout << BLUE "----- Slope-Constrained DTW -----" COLOREND << endl;;
-
-  size_t nHypo = hypo_score.size();
-  float maxScore = FLT_MIN;
-  for (size_t i = 0; i < nHypo; ++i) {
-    float score = hypo_score[i];
-    if (printOrNot)
-      printf("hypothesized region[%lu]: score = %f, time span = (%d, %d)\n", i, score, hypo_bound[i].first, hypo_bound[i].second);
-    //cout << "hypothesized region[" << i << "]: score = " << hypo_score[i] << ", time span = (" << hypo_bound[i].first << ", " << hypo_bound[i].second << ")\n";
-
-    if (score > maxScore)
-      maxScore = score;
-  }
-
-  return maxScore;
+string bool2str(bool b) {
+  return b ? "true" : "false";
 }
-
-
-// ========== RTK ==========
-// Feature f("data/a.fbank");
-// f.getHTKHeader().print();
-// f.print();
-// cout << "size of f.getObsSeq() = " << f.getObsSeq().size() << endl;
-

@@ -23,10 +23,16 @@ INCLUDE= -I include/ \
 
 CPPFLAGS=-std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp
-EXECUTABLES=extract dtw test
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp
+EXECUTABLES=extract train test calc-acoustic-similarity
  
+.PHONY: debug all o3
 all: $(EXECUTABLES) ctags
+
+o3: CFLAGS+=-O3
+o3: all
+debug: CFLAGS+=-g -DDEBUG
+debug: all
 
 vpath %.h include/
 vpath %.cpp src/
@@ -60,9 +66,11 @@ LIBRARY_PATH=-L/usr/local/boton/lib/ \
 
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-dtw: $(OBJ) dtw.cpp
+train: $(OBJ) train.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 test: $(OBJ) test.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 
 ctags:
