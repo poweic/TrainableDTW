@@ -1,5 +1,10 @@
 #include <utility.h>
 
+/*void pause() {
+  char c;
+  cin >> c;
+}*/
+
 string int2str(int n) {
   char buf[32];
   sprintf(buf, "%d", n);

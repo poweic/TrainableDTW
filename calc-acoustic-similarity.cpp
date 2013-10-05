@@ -42,20 +42,20 @@ int main (int argc, char* argv[]) {
 
   CmdParser cmdParser(argc, argv);
   cmdParser
-    .regOpt("-d", "directory containing mfcc files for a certain query")
-    .regOpt("-o", "output filename for the acoustic similarity matrix")
-    .regOpt("--list", "corresponding list of mfcc files")
-    .regOpt("--dtw-type", {"Choose the type of Dynamic Time Warping: ",
+    .add("-d", "directory containing mfcc files for a certain query")
+    .add("-o", "output filename for the acoustic similarity matrix")
+    .add("--list", "corresponding list of mfcc files")
+    .add("--dtw-type", {"Choose the type of Dynamic Time Warping: ",
 			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail",
 			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint" , 
 			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW", 
 			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail."})
-    .regOpt("--normalize", "Whether to normalize the acoustic similarity to [0, 1]", false, "true");
+    .add("--normalize", "Whether to normalize the acoustic similarity to [0, 1]", false, "true");
 
   cmdParser
     .addGroup("Distance options")
-    .regOpt("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
-    .regOpt("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
+    .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
+    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
 
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
