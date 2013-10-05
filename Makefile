@@ -15,16 +15,18 @@ INCLUDE= -I include/ \
 	 -I $(UGOC_ROOT)/libsegtree/include \
 	 -I $(UGOC_ROOT)/libfeature/include \
 	 -I $(UGOC_ROOT)/libdtw/include \
-	 -I $(UGOC_ROOT)/libutility/include
+	 -I $(UGOC_ROOT)/libutility/include \
+ 	 -I /usr/local/cuda/samples/common/inc/ \
+	 -I /usr/local/cuda/include
 
 #-I $(RTK_UTIL_ROOT)/include
 #-I $(UGOC_ROOT)/libfeature/include \
 #-I $(UGOC_ROOT)/libutility/include \
 
-CPPFLAGS=-std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
+CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp
-EXECUTABLES=extract train test calc-acoustic-similarity
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp
+EXECUTABLES=extract train test calc-acoustic-similarity thrust_example dnn_example ipc_example
  
 .PHONY: debug all o3
 all: $(EXECUTABLES) ctags
@@ -39,8 +41,7 @@ vpath %.cpp src/
 
 OBJ=$(addprefix obj/,$(SOURCES:.cpp=.o))
 
-LIBRARY= -lcmdparser \
-	 -lpbar \
+LIBRARY= -lpbar \
 	 -lprofile \
 	 -larray \
 	 -lmatrix \
@@ -68,9 +69,16 @@ extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 train: $(OBJ) train.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-test: $(OBJ) test.cpp
+test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
+ipc_example: $(OBJ) ipc_example.cpp ipc.h
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+thrust_example: $(OBJ) thrust_example.cu
+	nvcc -arch=sm_21 $(INCLUDE) -g -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
+dnn_example: $(OBJ) dnn_example.cpp dnn.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 
 ctags:
