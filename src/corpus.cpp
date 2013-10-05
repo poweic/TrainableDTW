@@ -20,20 +20,25 @@ vector<ppair> SubCorpus::getSamples(size_t n) {
   samples.reserve(n);
 
   size_t c = 0;
-  foreach (i, _list1) {
-    foreach (j, _list2) {
-      if (c++ < _counter)
-	continue;
 
-      if (c >= _counter + n)
-	break;
+  size_t iStart = _counter / _list2.size();
+  size_t jStart = _counter % _list2.size();
+
+  for(size_t i=iStart; i<_list1.size(); ++i) {
+    for(size_t j=jStart; j<_list2.size(); ++j) {
+      if (++c > n) break;
 
       string f1 = MFCC_DIRECTORY + _phone1 + "/" + _list1[i];
       string f2 = MFCC_DIRECTORY + _phone2 + "/" + _list2[j];
       samples.push_back(ppair(f1, f2));
     }
+    if (c++ > n) break;
   }
+
   _counter += samples.size();
+  /*if (_p1 == 2 && _p2 == 2)
+    printf("counter = %lu, iStart = %lu, jStart = %lu\n", _counter, iStart, jStart);*/
+
   if (_counter >= _size)
     _counter -= _size;
 

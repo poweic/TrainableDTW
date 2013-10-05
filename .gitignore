@@ -6,3 +6,8 @@ train
 calc-acoustic-similarity
 test
 extract
+dnn_example
+ipc_example
+thrust_example
+tags
+.*

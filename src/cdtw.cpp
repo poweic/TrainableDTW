@@ -1,13 +1,22 @@
 #include <cdtw.h>
 using namespace DtwUtil;
 
-double SMIN::eta=-4;
+double SMIN::eta=-64;
 
 inline double SMIN::eval(double x, double y, double z) {
   double s = eta;
   LLDouble xx(s*x), yy(s*y), zz(s*z);
   LLDouble sum = xx + yy + zz;
   return sum.getVal() / s;
+}
+
+inline double sigmoid(double x) {
+  return 1 / ( 1 + exp(-x) );
+}
+
+inline double d_sigmoid(double x) {
+  double s = sigmoid(x);
+  return s * (1 - s);
 }
 // ====================================================================
 vector<double> Bhattacharyya::_diag(Bhattacharyya::DIM_DEFAULT, 1.0);
@@ -27,13 +36,13 @@ float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   normalize(diag, 1);*/
 
   for (int i = 0; i < size; ++i)
-    ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
+    ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
   ret = sqrt(ret);
   return ret;
 }
 
 double Bhattacharyya::operator() (cvec x, cvec y, size_t k) const {
-  double partial = pow(x[k] - y[k], 2);
+  double partial = pow(x[k] - y[k], 2) * d_sigmoid(Bhattacharyya::_diag[k]);
   return partial;
 }
 

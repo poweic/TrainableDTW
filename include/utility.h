@@ -24,9 +24,13 @@ using namespace std;
   #define debug(token) {}
 #endif
 
+#define mylog(token) {cout << #token " = " << token << endl;}
+
 #define fillwith(arr, val) {std::fill(arr.begin(), arr.end(), val);}
 #define fillzero(arr) fillwith(arr, 0)
 #define checkNAN(x) assert((x) == (x))
+
+#define __DIVIDER__ "=========================================================="
 
 string int2str(int n);
 int str2int(const string& str);
@@ -40,6 +44,8 @@ bool isInt(string str);
 vector<string> split(const string &s, char delim);
 vector<string>& split(const string &s, char delim, vector<string>& elems);
 
+//void pause();
+
 inline bool exists (const string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
@@ -52,6 +58,15 @@ vector<T> vmax(S a, const vector<T>& v) {
     m[i] = MAX(a, v[i]);
   return m;
 }
+
+template <typename T, typename S>
+vector<T> vmix(S a, const vector<T>& v) {
+  vector<T> m(v.size());
+  foreach (i, m)
+    m[i] = MIN(a, v[i]);
+  return m;
+}
+
 
 template <typename T>
 T norm(vector<T> v) {

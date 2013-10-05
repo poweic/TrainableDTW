@@ -26,9 +26,13 @@ mat statistics (const Array<string>& phones);
 void updateTheta(vector<double>& theta, vector<double>& delta);
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores);
 void signalHandler(int param);
+void saveTheta();
 void regSignalHandler();
 
-void train(size_t batchSize, bool resume);
+void validation();
+void calcObjective(const vector<tsample>& samples);
+
+void train(size_t batchSize);
 
 string scoreDir;
 vector<double> theta;
@@ -39,25 +43,25 @@ int main (int argc, char* argv[]) {
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options")
-    .regOpt("--phase", "Choose either \"train\" or \"evaluate\".")
-    .regOpt("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
+    .add("-p", "Choose either \"train\" or \"evaluate\".")
+    .add("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
 
   cmdParser
     .addGroup("Distance measure options")
-    .regOpt("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
+    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-64");
 
   cmdParser
     .addGroup("Training options")
-    .regOpt("--batch-size", "number of training samples per batch", false, "10000")
-    .regOpt("--resume-training", "resume training using the previous condition", false, "false")
-    .regOpt("--mfcc-root", "root directory of MFCC files", false, "data/mfcc/");
+    .add("--batch-size", "number of training samples per batch", false, "10000")
+    .add("--resume-training", "resume training using the previous condition", false, "false")
+    .add("--mfcc-root", "root directory of MFCC files", false, "data/mfcc/");
   
   cmdParser
     .addGroup("Evaluation options")
-    .regOpt("-d", "directory for saving/loading scores", false)
-    .regOpt("-o", "filename for scores matrix", false)
-    .regOpt("-n", "pick n random instances for each phone when evaulating", false, "100")
-    .regOpt("--re-evaluate", "Re-evaluate pair-wise distances for each phones", false, "false");
+    .add("-d", "directory for saving/loading scores", false)
+    .add("-o", "filename for scores matrix", false)
+    .add("-n", "pick n random instances for each phone when evaulating", false, "100")
+    .add("--re-evaluate", "Re-evaluate pair-wise distances for each phones", false, "false");
 
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
@@ -68,7 +72,7 @@ int main (int argc, char* argv[]) {
   exec("mkdir -p " + scoreDir);
 
   // Parsering Command Arguments
-  string phase = cmdParser.find("--phase");
+  string phase = cmdParser.find("-p");
 
   size_t batchSize = str2int(cmdParser.find("--batch-size"));
   size_t N = str2int(cmdParser.find("-n"));
@@ -81,11 +85,22 @@ int main (int argc, char* argv[]) {
   bool reevaluate = cmdParser.find("--re-evaluate") == "true"; 
   SMIN::eta = stod(cmdParser.find("--eta"));
 
+  theta.resize(39);
+  if (resume) {
+    Array<double> previous(".theta.restore");
+    theta = (vector<double>) previous;
+    cout << "Setting theta to previous-trained one" << endl;
+  }
+
   Profile profile;
   profile.tic();
 
+  //validation();
+  //saveTheta();
+  //return 0;
+
   if (phase == "train")
-    train(batchSize, resume);
+    train(batchSize);
   else if (phase == "evaluate") {
 
     if (reevaluate)
@@ -102,32 +117,75 @@ int main (int argc, char* argv[]) {
   }
 
   profile.toc();
+
+  saveTheta();
   return 0;
 }
 
-void train(size_t batchSize, bool resume) {
+void validation() {
+  Corpus corpus("data/phones.txt");
+  const size_t MINIATURE_SIZE = 1000;
+  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
+
+  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
+
+  theta.resize(39);
+  fillwith(theta, 1);
+
+  for (itr=0; itr<10000; ++itr) {
+
+    auto t = theta;
+
+    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
+    vector<double> dTheta(39);
+    foreach (i, samples) {
+      vector<double> dThetaPerSample(39);
+      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
+      bool positive = samples[i].second;
+      dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
+    }
+
+    dTheta = dTheta / (double) samples.size();
+    updateTheta(theta, dTheta);
+    double diff = norm(theta - t);
+    debug(diff);
+    // printf("#"BLUE"%5lu:"COLOREND"\tdiff = "GREEN "%.6e" COLOREND ":\t", itr, diff);
+    //print(theta);
+
+    calcObjective(samples);
+  }
+  
+}
+
+void calcObjective(const vector<tsample>& samples) {
+
+  double obj = 0;
+  foreach (i, samples) {
+    auto cscore = dtw(samples[i].first.first, samples[i].first.second);
+    bool positive = samples[i].second;
+    obj += (positive) ? cscore : (-cscore);
+  }
+
+  cout << "objective = " << GREEN << obj << COLOREND << endl;
+  //cin.get();
+}
+
+void train(size_t batchSize) {
   Corpus corpus("data/phones.txt");
 
   if (!corpus.isBatchSizeApprop(batchSize))
     return;
 
-  theta.resize(39);
-  if (resume) {
-    Array<double> prevTheta(".theta.restore");
-    foreach (i, prevTheta)
-      theta[i] = prevTheta[i];
-  }
-  else
-    fillwith(theta, 1);
-
   const size_t epoch = 1;
   size_t nBatch = corpus.size() / batchSize;
+  cout << "# of batches = " << nBatch << endl;
   for (itr=0; itr<nBatch; ++itr) {
     vector<tsample> samples = corpus.getSamples(batchSize);
     cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
 
     auto t = theta;
 
+    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
     vector<double> dTheta(39);
     size_t nPositive = 0;
     size_t nNegative = 0;
@@ -147,10 +205,11 @@ void train(size_t batchSize, bool resume) {
     dTheta = dTheta / (double) samples.size();
     updateTheta(theta, dTheta);
 
-    double diff = norm(theta - t);
-    printf(GREEN "%.6e" COLOREND ":\t", diff);
-    printf(" # of positive = %lu, # of negative = %lu\n", nPositive, nNegative);
+    //double diff = norm(theta - t);
+    //printf(GREEN "%.6e" COLOREND ":\t", diff);
+    //printf(" # of positive = %lu, # of negative = %lu\n", nPositive, nNegative);
     print(theta);
+    saveTheta();
   }
 }
 
@@ -307,34 +366,27 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
 }
 
 void updateTheta(vector<double>& theta, vector<double>& delta) {
-  static double learning_rate = 0.0001;
+  static double learning_rate = 0.0000001;
   double maxNorm = 1;
 
   // Adjust Learning Rate || Adjust delta 
-  if (norm(delta) * learning_rate > maxNorm) {
+  // TODO go Google some algorithms to adjust learning_rate, such as Line Search, and of course some packages
+  /*if (norm(delta) * learning_rate > maxNorm) {
     //delta = delta / norm(delta) * maxNorm / learning_rate;
     learning_rate = maxNorm / norm(delta);
-  }
+  }*/
 
-  cout << "norm of delta = " << norm(delta) << ", learning rate = " << learning_rate << endl;
+  debug(norm(delta));
+  debug(learning_rate);
   foreach (i, theta)
     theta[i] -= learning_rate*delta[i];
 
   // Enforce every diagonal element >= 0
-  for (double &t : theta) {
-    if (t < 0)
-      cerr << RED " < 0" COLOREND << endl;
-  }
-  theta = vmax(0, theta);
 
-
-  // TODO Still, one need to push the updated theta into pdist(i, j)
-  // so that distance measurement is updated too.
-  
-  // TODO To achieve this, a new function pointer called Bhattacharyya 
-  // should be implemented and it should be passed to DtwRunner when
-  // constructing a runner. Beside it should also provide a mechanism
-  // to update the diagonal element (i.e. theta[i], i = 0 ~ 39 - 1 )
+  // theta = theta / vecsum(theta); <== This is kind of erroneous
+  // , 'cause this isn't the way updating theta ( according to Gradient Descent)
+  // , and therefore the objective function is not gauranteed to be monotonically Inc/Dec
+  //theta = vmax(0, theta);
 
   Bhattacharyya::setDiag(theta);
 }
@@ -398,19 +450,23 @@ double average(const mat& m, const double MIN) {
   return total / counter;
 }
 
-void signalHandler(int param) {
-  cout << RED "[Interrupted]" COLOREND << " aborted by user. # of iteration = " << itr << endl;
-  cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
-
+void saveTheta() {
   Array<double> t(theta.size());
   foreach (i, t)
     t[i] = theta[i];
   t.saveas(".theta.restore");
+}
 
+void signalHandler(int param) {
+  cout << RED "[Interrupted]" COLOREND << " aborted by user. # of iteration = " << itr << endl;
+  cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
+
+  saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
 
   exit(-1);
 }
+
 
 void regSignalHandler () {
   if (signal (SIGINT, signalHandler) == SIG_ERR)
