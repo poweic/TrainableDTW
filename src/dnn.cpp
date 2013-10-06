@@ -8,108 +8,172 @@ vec loadvector(string filename) {
   return v;
 }
 
-namespace blas {
-  vec rand(size_t size) {
-    vec v(size);
+DNN::DNN(dim_list dims): _dims(dims) {
+  _weights.resize(_dims.size() - 1);
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, 1);
-
-    foreach (i, v)
-      v[i] = dis(gen);
-
-    return v;
+  foreach (i, _weights) {
+    size_t M = _dims[i] + 1;
+    size_t N = _dims[i + 1];
+    _weights[i].resize(M, N);
   }
 
-  vec softmax(const vec& x) {
-    vec s(x.size());
+  randInit();
+}
 
-    foreach (i, s)
-      s[i] = exp(x[i]);
+size_t DNN::getNLayer() const {
+  return _dims.size(); 
+}
 
-    auto denominator = 1.0 / vecsum(s);
-    foreach (i, s)
-      s[i] *= denominator;
+size_t DNN::getDepth() const {
+  return _dims.size() - 2;
+}
 
-    return s;
+vector<mat>& DNN::getWeights() {
+  return _weights;
+}
+
+vector<size_t>& DNN::getDims() {
+  return _dims;
+}
+
+void DNN::randInit() {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(0, 1);
+
+  foreach (i, _weights) {
+    mat& w = _weights[i];
+    for (size_t r=0; r<w.getRows(); ++r)
+      for (size_t c=0; c<w.getCols(); ++c)
+	w[r][c] = dis(gen);
+
   }
+}
 
-  mat softmax(const mat& m) {
-    // TODO
-    return m;
-  }
+// ========================
+// ===== Feed Forward =====
+// ========================
+void DNN::feedForward(const vec& x, vector<vec>* hidden_output) {
 
-  vec sigmoid(const vec& x) {
-    vec s(x.size());
-    std::transform(x.begin(), x.end(), s.begin(), fn::sigmoid<float>());
-    return s;
-  }
-
-  vec b_sigmoid(const vec& x) {
-    vec s(x.size() + 1);
-    std::transform(x.begin(), x.end(), s.begin(), fn::sigmoid<float>());
-    s[s.size() - 1] = 1.0;
-    return s;
-  }
-};
-
-
-vec DNN::feedForward(const vec& x) {
+  vector<vec>& O = *hidden_output;
+  //O.resize(_dims.size());
+  assert(O.size() == _dims.size());
 
   // Init with one extra element, which is bias
-  _v_output[0].resize(x.size() + 1);
-  std::copy (x.begin(), x.end(), _v_output[0].begin());
+  O[0].resize(x.size() + 1);
+  std::copy(x.begin(), x.end(), O[0].begin());
 
-  for (size_t i=1; i<_v_output.size(); ++i)
-    _v_output[i] = blas::b_sigmoid(_v_output[i-1] * _weights[i-1]);
+  for (size_t i=1; i<O.size() - 1; ++i)
+    O[i] = blas::b_sigmoid(O[i-1] * _weights[i-1]);
 
-  return _v_output.back();
+  size_t end = O.size() - 1;
+  O[end] = blas::sigmoid(O[end - 1] * _weights[end - 1]);
 }
 
-mat DNN::feedForward(const mat& batch_x) {
-  // TODO
-  return mat();
-}
+// ============================
+// ===== Back Propagation =====
+// ============================
+vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
 
-vec DNN::backPropagate(const vec& x) {
-  // TODO
-  return vec();
-}
+  assert(gradient->size() == _weights.size());
 
-mat DNN::backPropagate(const mat& batch_p) {
-  // TODO
-  return mat();
-}
+  vec p(x);
+  reverse_foreach (i, _weights) {
+    (*gradient)[i] = p * (*O)[i];
+    p = (*O)[i] & ( 1.0 - (*O)[i] ) & (_weights[i] * p);
 
-vec operator*(const vec& x, const vec& y) {
-  vec z(x.size());
-  std::transform (x.begin(), x.end(), y.begin(), z.begin(), std::multiplies<float>());
-  return z;
-}
-
-vec operator*(const mat& A, const vec& col_vector) {
-
-  vec y(A.getRows());
-  int cols = A.getCols();
-
-  foreach (i, y) {
-    for (size_t j=0; j<cols; ++j)
-      y[i] += col_vector[j] * A[i][j];
+    // Remove bias
+    p.pop_back();
   }
 
-  return y;
+  return p;
+}
+// ===============================
+// ===== Class DTW-DNN Model =====
+// ===============================
+Model::Model(dim_list pp_dim, dim_list dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
+  _w = blas::rand<float>(_dtw.getDims()[0]);
+  this->initHiddenOutputAndGradient();
 }
 
-vec operator*(const vec& row_vector, const mat& A) {
+void Model::initHiddenOutputAndGradient() {
 
-  vec y(A.getCols());
-  int rows = A.getRows();
+  std::get<0>(hidden_output).resize(_pp.getNLayer());
+  std::get<1>(hidden_output).resize(_pp.getNLayer());
+  std::get<3>(hidden_output).resize(_dtw.getNLayer());
 
-  foreach (i, y) {
-    for (size_t j=0; j<rows; ++j)
-      y[i] += row_vector[j] * A[j][i];
-  }
+  std::get<0>(gradient).resize(_pp.getWeights().size());
+  std::get<1>(gradient).resize(_pp.getWeights().size());
+  std::get<3>(gradient).resize(_dtw.getWeights().size());
+}
 
-  return y;
+#define EASY_ALIAS \
+  vector<vec>& Ox = std::get<0>(hidden_output); \
+vector<vec>& Oy = std::get<1>(hidden_output); \
+vec& Om	    = std::get<2>(hidden_output); \
+vector<vec>& Od = std::get<3>(hidden_output);
+
+#define EASY_ALIAS2 \
+  vector<mat>& ppg1 = std::get<0>(gradient);	      \
+vector<mat>& ppg2 = std::get<1>(gradient);	      \
+vec& middle_gradients     = std::get<2>(gradient);\
+vector<mat>& dtw_gradient = std::get<3>(gradient);
+
+void Model::evaluate(const vec& x, const vec& y) {
+
+  EASY_ALIAS;
+
+  _pp.feedForward(x, &Ox);
+  _pp.feedForward(y, &Oy);
+
+  Ox.back() = blas::softmax(Ox.back());
+  Oy.back() = blas::softmax(Oy.back());
+
+  Om = Ox.back() & Oy.back() & _w;
+
+  _dtw.feedForward(Om, &Od);
+}
+
+void Model::train(const vec& x, const vec& y) {
+  this->evaluate(x, y);
+  this->calcGradients(x, y);
+  this->updateParameters();
+}
+
+void Model::calcGradients(const vec& x, const vec& y) {
+
+  EASY_ALIAS;
+  EASY_ALIAS2;
+  // ==============================================
+  vec& final_output = Od.back();
+  auto p = _dtw.backPropagate(final_output, &Od, &dtw_gradient);
+
+  // ==============================================
+  middle_gradients = Om & p;
+
+  auto px = p & Oy.back() & _w;
+  auto py = p & Ox.back() & _w;
+
+  px = (px - vecsum(px & Ox.back()) ) & Ox.back();
+  py = (py - vecsum(py & Oy.back()) ) & Oy.back();
+
+  // ==============================================
+  _pp.backPropagate(px, &Ox, &ppg1);
+  _pp.backPropagate(py, &Oy, &ppg2);
+}
+
+void Model::updateParameters() {
+  vector<mat>& ppg1 = std::get<0>(gradient);
+  vector<mat>& ppg2 = std::get<1>(gradient);
+  vector<mat>& dtwg = std::get<3>(gradient);
+
+  float learning_rate = 0.01;
+
+  vector<mat>& ppw = _pp.getWeights();
+  foreach (i, ppw)
+    ppw[i] += learning_rate * (ppg1[i] + ppg2[i]);
+
+  vector<mat>& dtww = _dtw.getWeights();
+  foreach (i, dtww)
+    dtww[i] += learning_rate * dtwg[i];
 }

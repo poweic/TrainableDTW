@@ -16,6 +16,7 @@
 using namespace std;
 
 #define foreach(i, arr) for (size_t i=0; i<arr.size(); ++i)
+#define reverse_foreach(i, arr) for (int i=(int)arr.size()-1; i>=0; --i)
 #define FLOAT_MIN (std::numeric_limits<float>::lowest())
 
 #ifdef DEBUG
@@ -67,7 +68,6 @@ vector<T> vmix(S a, const vector<T>& v) {
   return m;
 }
 
-
 template <typename T>
 T norm(vector<T> v) {
   T sum = 0;
@@ -76,7 +76,7 @@ T norm(vector<T> v) {
 }
 
 template <typename T>
-T vecsum(vector<T> v) {
+T vecsum(const vector<T>& v) {
   T sum = 0;
   foreach (i, v) sum += v[i];
   return sum;
@@ -100,36 +100,10 @@ void print(const vector<T>& v) {
   printf("]\n");
 }
 
-template <typename T>
-vector<T> operator / (const vector<T> &v, const T c) {
-  vector<T> v2(v.size());
-  foreach (i, v)
-    v2[i] = v[i] / c;
-  return v2;
-}
 
-template <typename T>
-vector<T> operator * (const vector<T> &v, const T c) {
-  vector<T> v2(v.size());
-  foreach (i, v)
-    v2[i] = v[i] * c;
-  return v2;
-}
-
-template <typename T>
-vector<T> operator + (const vector<T> &v1, const vector<T> &v2) {
-  vector<T> sum(v1.size());
-  std::transform(v1.begin(), v1.end(), v2.begin(), sum.begin(), std::plus<T>());
-  return sum;
-}
-
-template <typename T>
-vector<T> operator - (const vector<T> &v1, const vector<T> &v2) {
-  vector<T> diff(v1.size());
-  std::transform(v1.begin(), v1.end(), v2.begin(), diff.begin(), std::minus<T>());
-  return diff;
-}
-
+// ==============================================
+// ===== Split vectors in vector of vectors =====
+// ==============================================
 template <typename T>
 vector<vector<T> > split(const vector<T>& v, const vector<size_t>& lengths) {
   vector<vector<T> > result;

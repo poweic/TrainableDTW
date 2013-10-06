@@ -1,11 +1,7 @@
 #ifndef __DNN_H_
 #define __DNN_H_
 
-#include <matrix.h>
-#include <utility.h>
-#include <random>
-
-#include <functional>
+#include <blas.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -13,103 +9,51 @@
 #include <thrust/device_vector.h>
 using namespace std;
 
-typedef initializer_list<size_t> dim_list;
-
-//typedef thrust::host_vector<float> vec;
+typedef Matrix2D<float> mat;
 typedef vector<float> vec;
 
-vec operator*(const vec& x, const vec& y);
-vec operator*(const mat& A, const vec& row_vector);
-vec operator*(const vec& col_vector, const mat& A);
+typedef initializer_list<size_t> dim_list;
+typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
+typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
+//typedef thrust::host_vector<float> vec;
 
 vec loadvector(string filename);
 
-namespace blas {
-  vec rand(size_t size);
-  vec softmax(const vec& x);
-  mat softmax(const mat& m);
-
-  vec sigmoid(const vec& x);
-  
-  namespace fn {
-    template <typename T>
-    struct sigmoid {
-      T operator()(T x) { return 1 / ( 1 + exp(-x) ); }
-    };
-  };
-};
-
 class DNN {
 public:
-  DNN(dim_list dims): _dims(dims) {
-    _weights.resize(_dims.size() - 1);
-    _v_output.resize(_dims.size());
-    _m_output.resize(_dims.size());
+  DNN(dim_list dims);
 
-    foreach (i, _weights)
-      _weights[i].resize(_dims[i], _dims[i+1]);
+  void randInit();
+  void feedForward(const vec& x, vector<vec>* hidden_output);
+  vec backPropagate(const vec& x, vector<vec>* hidden_output, vector<mat>* gradient);
 
-    randInit();
-  }
+  size_t getNLayer() const;
+  size_t getDepth() const;
 
-  void randInit() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, 1);
+  vector<mat>& getWeights();
+  vector<size_t>& getDims();
 
-    foreach (i, _weights) {
-      mat& w = _weights[i];
-      for (size_t r=0; r<w.getRows(); ++r)
-	for (size_t c=0; c<w.getCols(); ++c)
-	  w[r][c] = dis(gen);
-
-    }
-  }
-
-  vec feedForward(const vec& x);
-  mat feedForward(const mat& batch_x);
-
-  vec backPropagate(const vec& x);
-  mat backPropagate(const mat& batch_p);
-
-  size_t getDepth() const { return _dims.size() - 2; }
-
+private:
   vector<size_t> _dims;
   vector<mat> _weights;
-
-  vector<vec> _v_output;
-  vector<mat> _m_output;
 };
 
 
 class Model {
 public:
-  Model(dim_list pp_dim, dim_list dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
-    _w = blas::rand(_dtw._dims[0]);
-  }
+  Model(dim_list pp_dim, dim_list dtw_dim);
 
-  void load(string filename) {
+  void load(string filename);
+  void initHiddenOutputAndGradient();
 
-  }
 
-  double evaluate(const vec& x, const vec& y) {
-    auto Ox = _pp.feedForward(x);
-    auto Oy = _pp.feedForward(y);
+  void train(const vec& x, const vec& y);
+  void evaluate(const vec& x, const vec& y);
+  void calcGradients(const vec& x, const vec& y);
+  void updateParameters();
 
-    Ox = blas::softmax(Ox);
-    Oy = blas::softmax(Oy);
-
-    auto Om = Ox * Oy * _w;
-
-    auto Od = _dtw.feedForward(Om);
-    return Od[0];
-  }
-
-  // vec feedForward(const vec& x);
-  // mat feedForward(const mat& batch_x);
-
-  vec backPropagate(const vec& x);
-  mat backPropagate(const mat& batch_p);
+  HIDDEN_OUTPUT hidden_output;
+  GRADIENT gradient;
 
   vec _w;
   DNN _pp;

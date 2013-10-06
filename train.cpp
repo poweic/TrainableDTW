@@ -6,6 +6,7 @@
 #include <util.h>
 #include <utility.h>
 #include <profile.h>
+#include <blas.h>
 
 #include <cdtw.h>
 #include <corpus.h>
