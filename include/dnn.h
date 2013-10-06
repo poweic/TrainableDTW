@@ -38,6 +38,17 @@ private:
   vector<mat> _weights;
 };
 
+#define HIDDEN_OUTPUT_ALIASING(tuple, x, y, z, w) \
+vector<vec>& x	= std::get<0>(tuple); \
+vector<vec>& y	= std::get<1>(tuple); \
+vec& z		= std::get<2>(tuple); \
+vector<vec>& w	= std::get<3>(tuple);
+
+#define GRADIENT_ALIASING(tuple, g1, g2, g3, g4) \
+vector<mat>& g1	= std::get<0>(tuple); \
+vector<mat>& g2 = std::get<1>(tuple); \
+vec& g3		= std::get<2>(tuple); \
+vector<mat>& g4 = std::get<3>(tuple);
 
 class Model {
 public:
@@ -46,12 +57,15 @@ public:
   void load(string filename);
   void initHiddenOutputAndGradient();
 
-
   void train(const vec& x, const vec& y);
   void evaluate(const vec& x, const vec& y);
   void calcGradients(const vec& x, const vec& y);
   void updateParameters();
 
+  HIDDEN_OUTPUT& getHiddenOutput();
+  GRADIENT& getGradient();
+
+private:
   HIDDEN_OUTPUT hidden_output;
   GRADIENT gradient;
 

@@ -107,21 +107,9 @@ void Model::initHiddenOutputAndGradient() {
   std::get<3>(gradient).resize(_dtw.getWeights().size());
 }
 
-#define EASY_ALIAS \
-  vector<vec>& Ox = std::get<0>(hidden_output); \
-vector<vec>& Oy = std::get<1>(hidden_output); \
-vec& Om	    = std::get<2>(hidden_output); \
-vector<vec>& Od = std::get<3>(hidden_output);
-
-#define EASY_ALIAS2 \
-  vector<mat>& ppg1 = std::get<0>(gradient);	      \
-vector<mat>& ppg2 = std::get<1>(gradient);	      \
-vec& middle_gradients     = std::get<2>(gradient);\
-vector<mat>& dtw_gradient = std::get<3>(gradient);
-
 void Model::evaluate(const vec& x, const vec& y) {
 
-  EASY_ALIAS;
+  HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
 
   _pp.feedForward(x, &Ox);
   _pp.feedForward(y, &Oy);
@@ -142,14 +130,14 @@ void Model::train(const vec& x, const vec& y) {
 
 void Model::calcGradients(const vec& x, const vec& y) {
 
-  EASY_ALIAS;
-  EASY_ALIAS2;
+  HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
+  GRADIENT_ALIASING(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
   // ==============================================
   vec& final_output = Od.back();
   auto p = _dtw.backPropagate(final_output, &Od, &dtw_gradient);
 
   // ==============================================
-  middle_gradients = Om & p;
+  middle_gradient = Om & p;
 
   auto px = p & Oy.back() & _w;
   auto py = p & Ox.back() & _w;
@@ -176,4 +164,12 @@ void Model::updateParameters() {
   vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i] += learning_rate * dtwg[i];
+}
+
+HIDDEN_OUTPUT& Model::getHiddenOutput() {
+  return hidden_output;
+}
+
+GRADIENT& Model::getGradient() {
+  return gradient;
 }
