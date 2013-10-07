@@ -12,7 +12,7 @@
 
 using namespace std;
 
-typedef Matrix2D<double> mat;
+//typedef Matrix2D<double> mat;
 
 void goAll();
 mat fast(const Array<string>& files);
@@ -29,11 +29,11 @@ string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
 
-  //goAll();
+  goAll();
 
   Array<string> files("test.list");
   //mat s1 = fast(files);
-  mat s2 = golden::go(files);
+  //mat s2 = golden::go(files);
 
   //cout << endl << GREEN __DIVIDER__ "Diff" __DIVIDER__ COLOREND << endl;
   //mat s3 = s2 - s1;
@@ -86,9 +86,18 @@ void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& p
   DtwParm X;
   DtwParm Y;
 
+  double totalLength = 0;
+  double nIndexes = 0;
+
   for (auto i=phoneInstances.cbegin(); i != phoneInstances.cend(); ++i) {
 
-    if (phones[i->first] != "CH_ts")
+    const vector<FeatureSeq>& fSeqs = i->second;
+
+    foreach (j, fSeqs)
+      totalLength += fSeqs[j].size();
+    nIndexes += fSeqs.size();
+
+    /*if (phones[i->first] != "CH_ts")
       continue;
 
     const vector<FeatureSeq>& fSeqs = i->second;
@@ -119,8 +128,11 @@ void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& p
     double avgTime = elapsed / (double) nPairs;
     printf("average time calculating a DTW pair = %8e, %lu in total\n", avgTime, nPairs);
     return;
+    */
   }
 
+  mylog(totalLength);
+  mylog(nIndexes);
 }
 
 mat fast(const Array<string>& files) {

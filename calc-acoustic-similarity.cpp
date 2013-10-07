@@ -12,6 +12,7 @@
 using namespace DtwUtil;
 using namespace std;
 
+typedef Matrix2D<double> mat;
 void normalize(mat& m, int type = 1);
 
 double cdtw(DtwParm& q_parm, DtwParm& d_parm);
