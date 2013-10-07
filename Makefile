@@ -26,10 +26,13 @@ INCLUDE= -I include/ \
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
 SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp
-EXECUTABLES=extract train test calc-acoustic-similarity thrust_example ipc_example dnn_example 
+EXECUTABLES=extract train test calc-acoustic-similarity 
+EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
  
-.PHONY: debug all o3
+.PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
+
+example: $(EXAMPLE_PROGRAM) ctags
 
 o3: CFLAGS+=-O3
 o3: all
@@ -96,4 +99,4 @@ obj/%.d: %.cpp
 
 .PHONY:
 clean:
-	rm -rf $(EXECUTABLES) obj/*
+	rm -rf $(EXECUTABLES) $(EXAMPLE_PROGRAM) obj/*

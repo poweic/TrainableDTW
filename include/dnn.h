@@ -59,8 +59,8 @@ public:
 
   void train(const vec& x, const vec& y);
   void evaluate(const vec& x, const vec& y);
-  void calcGradients(const vec& x, const vec& y);
-  void updateParameters();
+  void calcGradient(const vec& x, const vec& y);
+  void updateParameters(GRADIENT& g);
 
   HIDDEN_OUTPUT& getHiddenOutput();
   GRADIENT& getGradient();

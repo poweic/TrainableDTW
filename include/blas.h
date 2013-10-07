@@ -65,6 +65,17 @@ namespace blas {
       T operator()(T x) { return 1 / ( 1 + exp(-x) ); }
     };
   };
+  // ==================================
+  // ===== First Order Difference =====
+  // ==================================
+  template <typename T>
+  vector<T> diff1st(const vector<T>& v) {
+    vector<T> diff(v.size() - 1);
+    foreach (i, diff)
+      diff[i] = v[i+1] - v[i];
+    return diff;
+  }
+  
   // =========================
   // ===== Random Vector =====
   // =========================

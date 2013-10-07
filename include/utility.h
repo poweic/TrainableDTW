@@ -11,6 +11,7 @@
 #include <cmath>
 #include <csignal>
 #include <sys/stat.h>
+#include <helper_timer.h>
 
 #include <color.h>
 using namespace std;
@@ -45,7 +46,22 @@ bool isInt(string str);
 vector<string> split(const string &s, char delim);
 vector<string>& split(const string &s, char delim, vector<string>& elems);
 
-//void pause();
+namespace util {
+  class Timer {
+    public:
+      Timer(): timer(nullptr) { sdkCreateTimer(&timer); }
+      ~Timer() { sdkDeleteTimer(&timer); }
+
+      void start()	{ timer->start(); }
+      void stop()	{ timer->stop();  }
+      void reset()	{ timer->reset(); }
+
+      float getTime() { return timer->getTime(); }
+
+    private:
+      StopWatchInterface* timer;
+  };
+};
 
 inline bool exists (const string& name) {
   struct stat buffer;   
@@ -93,10 +109,12 @@ void normalize(vector<T>& v, int type = 2) {
 }
 
 template <typename T>
-void print(const vector<T>& v) {
+void print(const vector<T>& v, size_t n_digits = 3) {
+
+  string format = "%." + to_string(n_digits) + "f ";
   printf("[");
   foreach (i, v)
-    printf("%.2f ", v[i]);
+    printf(format.c_str(), v[i]);
   printf("]\n");
 }
 

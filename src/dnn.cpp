@@ -124,11 +124,11 @@ void Model::evaluate(const vec& x, const vec& y) {
 
 void Model::train(const vec& x, const vec& y) {
   this->evaluate(x, y);
-  this->calcGradients(x, y);
-  this->updateParameters();
+  this->calcGradient(x, y);
+  this->updateParameters(this->gradient);
 }
 
-void Model::calcGradients(const vec& x, const vec& y) {
+void Model::calcGradient(const vec& x, const vec& y) {
 
   HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
   GRADIENT_ALIASING(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
@@ -150,12 +150,10 @@ void Model::calcGradients(const vec& x, const vec& y) {
   _pp.backPropagate(py, &Oy, &ppg2);
 }
 
-void Model::updateParameters() {
-  vector<mat>& ppg1 = std::get<0>(gradient);
-  vector<mat>& ppg2 = std::get<1>(gradient);
-  vector<mat>& dtwg = std::get<3>(gradient);
+void Model::updateParameters(GRADIENT& g) {
+  GRADIENT_ALIASING(g, ppg1, ppg2, mg, dtwg);
 
-  float learning_rate = 0.01;
+  float learning_rate = -0.01;
 
   vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)

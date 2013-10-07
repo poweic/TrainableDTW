@@ -2,6 +2,7 @@
 #include <string>
 #include <color.h>
 #include <array.h>
+#include <profile.h>
 
 #include <dnn.h>
 
@@ -11,6 +12,40 @@ template <typename T>
 vector<T>& operator += (vector<T>& x, vector<T>& y) {
   x = x + y;
   return x;
+}
+
+GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
+void print(GRADIENT& g);
+GRADIENT& calcGradient(Model& model, const vec& x, const vec& y);
+float evaluate(Model& model, const vec& x, const vec& y);
+
+int main (int argc, char* argv[]) {
+  vec x = loadvector("data/test.vx");
+  vec y = loadvector("data/test.vy");
+
+  int M = 74;
+  int WIDTH = 4096;
+  Model model({39, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, M}, {M, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, 1});
+  // auto g = calcGradient(model, x, y);
+
+  const size_t MAX_ITR = 128;
+  vec d(MAX_ITR);
+
+  util::Timer timer;
+  timer.start();
+  for (size_t i=0; i<MAX_ITR; ++i) {
+    d[i] = evaluate(model, x, y);
+
+    model.calcGradient(x, y);
+    model.updateParameters(model.getGradient());
+  }
+
+  print(d, 5);
+  print(blas::diff1st(d), 5);
+  
+  printf("%f ms in total, avg %f ms per upate\n", timer.getTime(), timer.getTime() / MAX_ITR);
+
+  return 0;
 }
 
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
@@ -49,22 +84,14 @@ void print(GRADIENT& g) {
 
 GRADIENT& calcGradient(Model& model, const vec& x, const vec& y) {
   model.evaluate(x, y); 
-  model.calcGradients(x, y);
+  model.calcGradient(x, y);
   return model.getGradient();
 }
 
-int main (int argc, char* argv[]) {
-  vec x = loadvector("data/test.vx");
-  vec y = loadvector("data/test.vy");
-
-  int M = 74;
-  Model model({39, 4, 4, 3, M}, {M, 4, 4, 3, 1});
-  //model.train(x, y);
-  
-  auto g = calcGradient(model, x, y);
-
-  for (size_t i=0; i<128; ++i)
-    g += calcGradient(model, x, y);
-
-  return 0;
+float evaluate(Model& model, const vec& x, const vec& y) {
+  model.evaluate(x, y);
+  auto& o = std::get<3>(model.getHiddenOutput());
+  auto d = o[o.size() - 1][0];
+  return d;
 }
+
