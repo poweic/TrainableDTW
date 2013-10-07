@@ -133,6 +133,14 @@ void validation() {
   theta.resize(39);
   fillwith(theta, 1);
 
+
+  int npos = 0;
+  foreach (i, samples) {
+    if(samples[i].second) npos++;
+  }
+  mylog(npos);
+  mylog(samples.size() - npos);
+
   for (itr=0; itr<10000; ++itr) {
 
     auto t = theta;
@@ -148,11 +156,13 @@ void validation() {
 
     dTheta = dTheta / (double) samples.size();
     updateTheta(theta, dTheta);
-    double diff = norm(theta - t);
-    debug(diff);
+    //print(dTheta);
+    //double diff = norm(theta - t);
+    //debug(diff);
     // printf("#"BLUE"%5lu:"COLOREND"\tdiff = "GREEN "%.6e" COLOREND ":\t", itr, diff);
     //print(theta);
 
+    saveTheta();
     calcObjective(samples);
   }
   
@@ -167,7 +177,8 @@ void calcObjective(const vector<tsample>& samples) {
     obj += (positive) ? cscore : (-cscore);
   }
 
-  cout << "objective = " << GREEN << obj << COLOREND << endl;
+  printf("%.5f\n", obj);
+  //cout << "objective = " << GREEN << obj << COLOREND << endl;
   //cin.get();
 }
 
@@ -367,7 +378,7 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
 }
 
 void updateTheta(vector<double>& theta, vector<double>& delta) {
-  static double learning_rate = 0.0000001;
+  static double learning_rate = 0.00001;
   double maxNorm = 1;
 
   // Adjust Learning Rate || Adjust delta 

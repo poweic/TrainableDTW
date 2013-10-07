@@ -79,8 +79,8 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-thrust_example: $(OBJ) thrust_example.cu
-	nvcc -arch=sm_21 $(INCLUDE) -g -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
+thrust_example: $(OBJ) thrust_example.cu device_matrix.h
+	nvcc -arch=sm_21 $(INCLUDE) -g -o $@ $@.cu $< $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
 dnn_example: $(OBJ) dnn_example.cpp dnn.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 

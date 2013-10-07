@@ -70,16 +70,13 @@ vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   for (size_t i=0; i<dtw->qLength(); ++i) {
     for (size_t j=0; j<dtw->dLength(); ++j) {
 	const float* qi = Q[i], *dj = D[j];
-	double coeff = alpha(i, j) * beta(i, j);
+	double coeff = alpha(i, j) + beta(i, j) - cScore;
+	coeff = exp(SMIN::eta * coeff);
+
 	foreach (k, dTheta)
 	  dTheta[k] += coeff * gradient(qi, dj, k);
     }
   }
-
-  double normalizer = 1 / cScore;
-  //normalizer /= dtw->qLength() * dtw->dLength();
-  foreach (i, dTheta)
-    dTheta[i] *= normalizer;
 
   return dTheta;
 }
@@ -94,7 +91,7 @@ namespace DtwUtil {
     // 581: FindBestPaths(nsnippet_, qL_) , where qL_ is passed to FindBestPaths as normalizer
     // and after that snippet_dist_ is filled by "-score_(qL_ - 1, variable-end) / normalizer"
     // Hence, we follow the same scheme: negative score divided by normalizer
-    this->_cScore = -score_(qL_ - 1, dL_ - 1);
+    this->_cScore = score_(qL_ - 1, dL_ - 1);
     // Don't normalize at here, qL_ * dL_ will be canceled when train
     // score /= qL_ * dL_;
     this->calcBeta();
@@ -110,24 +107,25 @@ namespace DtwUtil {
 
     // q == qL_ - 1, d == dL_ - 1
     int q = qL_ - 1, d = dL_ - 1;
-    beta_(q, d) = pdist(q, d);
+    beta_(q, d) = 0;
 
     // q == qL_ - 1
     q = qL_ - 1;
     for (d = dL_ - 2; d >= 0; --d)
-      beta_(q, d) = beta_(q, d + 1) + pdist(q, d);
+      //beta_(q, d) = beta_(q, d + 1) + pdist(q, d);
+      beta_(q, d) = beta_(q, d + 1) + pdist(q, d + 1);
 
     // d == dL_ - 1
     d = dL_ - 1;
     for (q = qL_ - 2; q >= 0; --q)
-      beta_(q, d) = beta_(q + 1, d) + pdist(q, d);
+      beta_(q, d) = beta_(q + 1, d) + pdist(q + 1, d);
 
     // interior points
     for (int d = dL_ - 2; d >= 0; --d) {
       for (int q = qL_ - 2; q >= 0; --q) {
-	double s1 = beta_(q  , d+1) + pdist(q, d),
-	       s2 = beta_(q+1, d  ) + pdist(q, d),
-	       s3 = beta_(q+1, d+1) + pdist(q, d);
+	double s1 = beta_(q  , d+1) + pdist(q  , d+1),
+	       s2 = beta_(q+1, d  ) + pdist(q+1, d  ),
+	       s3 = beta_(q+1, d+1) + pdist(q+1, d+1);
 
 	// TODO Use smoothed minimum (smin) to do the Cumulative DTW
 	double s = SMIN::eval(s1, s2, s3);
@@ -173,12 +171,12 @@ namespace DtwUtil {
           if (paths_) lastL_(q, d) = IPair(1, lastL_(q, d - 1).second + 1);
         }
 
-	double s1 = score_(q  , d-1) + pdist(q, d),
-	       s2 = score_(q-1, d  ) + pdist(q, d),
-	       s3 = score_(q-1, d-1) + pdist(q, d);
+	double s1 = score_(q  , d-1),
+	       s2 = score_(q-1, d  ),
+	       s3 = score_(q-1, d-1);
 
 	// TODO Use smoothed minimum (smin) to do the Cumulative DTW
-	double s = SMIN::eval(s1, s2, s3);
+	double s = SMIN::eval(s1, s2, s3) + pdist(q, d);
 	score_(q, d) = s;
       }
     }

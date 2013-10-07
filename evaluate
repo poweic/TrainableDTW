@@ -86,5 +86,5 @@ function recalcAS() {
 }
 
 addition_arg=$2
-#recalculate_acoustic_similarity
-evaluate
+recalculate_acoustic_similarity
+#evaluate
