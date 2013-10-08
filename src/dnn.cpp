@@ -171,3 +171,58 @@ HIDDEN_OUTPUT& Model::getHiddenOutput() {
 GRADIENT& Model::getGradient() {
   return gradient;
 }
+
+GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
+  GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);
+  GRADIENT_ALIASING(g2, g2_1, g2_2, g2_3, g2_4);
+
+  foreach (i, g1_1) g1_1[i] += g2_1[i];
+  foreach (i, g1_2) g1_2[i] += g2_2[i];
+  g1_3 += g2_3; 
+  foreach (i, g1_4) g1_4[i] += g2_4[i];
+
+  return g1;
+}
+
+GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2) {
+  GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);
+  GRADIENT_ALIASING(g2, g2_1, g2_2, g2_3, g2_4);
+
+  foreach (i, g1_1) g1_1[i] -= g2_1[i];
+  foreach (i, g1_2) g1_2[i] -= g2_2[i];
+  g1_3 -= g2_3; 
+  foreach (i, g1_4) g1_4[i] -= g2_4[i];
+
+  return g1;
+}
+
+GRADIENT& operator *= (GRADIENT& g, float c) {
+  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+
+  foreach (i, g1) g1[i] *= c;
+  foreach (i, g2) g2[i] *= c;
+  g3 *= c;
+  foreach (i, g4) g4[i] *= c;
+
+  return g;
+}
+
+GRADIENT operator + (GRADIENT g1, GRADIENT& g2) { return (g1 += g2); }
+GRADIENT operator - (GRADIENT g1, GRADIENT& g2) { return (g1 -= g2); }
+GRADIENT operator * (GRADIENT g, float c) { return (g *= c); }
+
+void print(GRADIENT& g) {
+  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  
+  foreach (i, g1)
+    g1[i].print();
+
+  foreach (i, g2)
+    g2[i].print();
+
+  cout << endl;
+  print(g3);
+
+  foreach (i, g4)
+    g4[i].print();
+}

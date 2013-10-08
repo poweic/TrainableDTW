@@ -74,4 +74,14 @@ private:
   DNN _dtw;
 };
 
+GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
+GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2);
+GRADIENT& operator *= (GRADIENT& g, float c);
+
+GRADIENT operator + (GRADIENT g1, GRADIENT& g2);
+GRADIENT operator - (GRADIENT g1, GRADIENT& g2);
+GRADIENT operator * (GRADIENT g, float c);
+
+void print(GRADIENT& g);
+
 #endif  // __DNN_H_

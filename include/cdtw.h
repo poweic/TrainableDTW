@@ -26,6 +26,9 @@ public:
   inline static double eval(double x, double y, double z);
 };
 
+inline double sigmoid(double x);
+inline double d_sigmoid(double x);
+
 //typedef vector<float>& cvec;
 typedef const float* cvec;
 
