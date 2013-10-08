@@ -2,15 +2,11 @@
 #include <string>
 #include <color.h>
 
-#include <thrust/transform_reduce.h>
-#include <thrust/functional.h>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <perf.h>
 #include <matrix.h>
 #include <device_matrix.h>
 /* Matrix size */
@@ -24,10 +20,10 @@ int cublas_example();
 
 int main (int argc, char* argv[]) {
 
-  mat answer("data/ab.mat");
   // ===== CPU Matrix =====
-  mat hA("data/a.mat");
-  mat hB("data/b.mat");
+  mat answer("data/test.AB.mat");
+  mat hA("data/test.A.mat");
+  mat hB("data/test.B.mat");
 
   /*cout << "A = " << endl;
   hA.print(3);
@@ -38,25 +34,32 @@ int main (int argc, char* argv[]) {
   //answer.print(3);
 
   DIVIDER("CPU Result");
-  mat hAB = hA*hB;
-  //(hA*hB).print(3);
+  mat CPU_result = hA*hB;
+  // CPU_result.print(3);
 
   // ===== GPU Matrix =====
   device_matrix<float> dA(hA);
   device_matrix<float> dB(hB);
 
   device_matrix<float> dC = dA*dB;
-  mat result(dC);
+  mat GPU_result(dC);
 
   DIVIDER("GPU Result");
-  //result.print(3);
+  //GPU_result.print(3);
 
   double err = 0;
-  for (size_t i=0; i<result.getRows(); ++i)
-    for (size_t j=0; j<result.getCols(); ++j)
-      err += result[i][j] - answer[i][j];
+  for (size_t i=0; i<GPU_result.getRows(); ++i)
+    for (size_t j=0; j<GPU_result.getCols(); ++j)
+      err += GPU_result[i][j] - CPU_result[i][j];
 
   cout << "err = " << err << endl;
+
+  float l1 = L1_NORM(dC, CPU_result);
+  cout << "l1  = " << l1 << endl;
+
+  sgemm(dA, dB, dC, (float) 1.0);
+
+  cout << "Good!!" << endl;
 
   /*
   thrust::host_vector<double> v(123);
@@ -189,35 +192,3 @@ int cublas_example() {
 
     return error_norm / ref_norm < 1e-6f ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-/*class gpuMatrix {
-
-  gpuMatrix(int rows, int cols) {
-    _rows = rows;
-    _cols = cols;
-
-    CCE(cublasCreate(&_handle));
-    CCE(cudaMalloc((void **) &_data, _rows * _cols * sizeof(float) ));
-  }
-
-  void sgemv() {
-
-  }
-
-  void sgemm() {
-
-  }
-
-  void perform() {
-
-    //status = cublasSgemm(_handle, CUBLAS_OP_N, CUBLAS_OP_N, N, N, N, &alpha, d_A, N, d_B, N, &beta, d_C, N);
-  }
-
-  private:
-    cublasHandle_t _handle;
-    size_t _rows;
-    size_t _cols;
-    float* _data;
-};
-*/
-

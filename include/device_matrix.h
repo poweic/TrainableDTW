@@ -3,6 +3,11 @@
 
 #include <matrix.h>
 
+#include <thrust/transform_reduce.h>
+#include <thrust/functional.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+
 /* Includes, cuda */
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
@@ -27,13 +32,13 @@ private:
 template <typename T>
 class device_matrix {
 public:
+  // default constructor 
   device_matrix(size_t r, size_t c): _rows(r), _cols(c), _data(NULL) {
     _init();
   }
 
   // Copy Constructor 
   device_matrix(const device_matrix<T>& source): _rows(source._rows), _cols(source._cols), _data(NULL) {
-    //cout << "In Copy Constructor" << endl;
     _init();
 
     cublasScopy(device_matrix<T>::_handle.get(), _rows * _cols, source._data, STRIDE, _data, STRIDE);
@@ -106,9 +111,13 @@ public:
     return ~cm_h_matrix;
   }
 
-
   template <typename S>
   friend void swap(device_matrix<S>& lhs, device_matrix<S>& rhs);
+
+  template <typename S>
+  friend S L1_NORM(device_matrix<S>& A, device_matrix<S>& B);
+
+  friend void sgemm(device_matrix<float>& A, device_matrix<float>& B, device_matrix<float>& C, float alpha, float beta);
 
   // Operator Assignment:
   // call copy constructor first, and swap with the temp variable
@@ -118,7 +127,19 @@ public:
   }
 
   void _init() {
+    if (_data != NULL)
+      CCE(cudaFree(_data));
+
     CCE(cudaMalloc((void **)&_data, _rows * _cols * sizeof(T)));
+  }
+
+  void resize(size_t r, size_t c) {
+    if (_rows == r && _cols == c)
+      return;
+
+    _rows = r;
+    _cols = c;
+    _init();
   }
 
   /*void print() {
@@ -129,8 +150,7 @@ public:
     }
   }*/
 
-  CUBLAS_HANDLE& getCublasHandle() { return _handle; }
-
+  size_t size() const { return _rows * _cols; }
   size_t getRows() const { return _rows; }
   size_t getCols() const { return _cols; }
 
@@ -157,12 +177,51 @@ void swap(device_matrix<T>& lhs, device_matrix<T>& rhs) {
 template <typename T>
 CUBLAS_HANDLE device_matrix<T>::_handle;
 
-template <typename T>
-void sgemm(device_matrix<T>& A, device_matrix<T>& B, device_matrix<T>& C) {
-  // TODO
+void sgemm(device_matrix<float>& A, device_matrix<float>& B, device_matrix<float>& C, float alpha = 1.0, float beta = 0.0) {
   // Perform C = αA*B + βC, not transpose on A and B
+  size_t m = A._rows;
+  size_t n = B._cols;
+  C.resize(m, n);
 
+  size_t k = A._cols;
+
+  int lda = A._rows;
+  int ldb = B._rows;
+  int ldc = C._rows;
+
+  cublasStatus_t status;
+  status = cublasSgemm(device_matrix<float>::_handle.get(), CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A._data, lda, B._data, ldb, &beta, C._data, ldc);
+
+  CCE(status);
 }
 
+template <typename T>
+T L1_NORM(host_matrix<T>& A, device_matrix<T>& B) {
+  device_matrix<T> dA(A);
+  return L1_NORM(dA, B);
+}
+
+template <typename T>
+T L1_NORM(device_matrix<T>& A, host_matrix<T>& B) {
+  device_matrix<T> dB(B);
+  return L1_NORM(A, dB);
+}
+
+template <typename T>
+T L1_NORM(device_matrix<T>& A, device_matrix<T>& B) {
+
+  int N = A.size();
+  thrust::device_ptr<T> ptr1(A._data);
+  thrust::device_ptr<T> ptr2(B._data);
+
+  thrust::device_vector<T> v1(ptr1, ptr1 + N);
+  thrust::device_vector<T> v2(ptr2, ptr2 + N);
+
+  thrust::device_vector<T> diff(N);
+
+  thrust::transform(v1.begin(), v1.end(), v2.begin(), diff.begin(), thrust::minus<T>());
+  float sum = thrust::reduce(diff.begin(), diff.end(), (T) 0, thrust::plus<T>());
+  return sum;
+}
 
 #endif // __DEVICE_MATRIX_H__

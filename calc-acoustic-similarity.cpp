@@ -190,7 +190,12 @@ double cdtw(DtwParm& q_parm, DtwParm& d_parm) {
   dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
   dtwRunner.DTW();
 
-  return dtwRunner.getCumulativeScore();
+  double cScoreInLog = dtwRunner.getCumulativeScore();
+  /*mylog(cScoreInLog);
+  mylog(SMIN::eta);
+  mylog(exp(SMIN::eta * cScoreInLog));
+  return exp(SMIN::eta * cScoreInLog);*/
+  return -cScoreInLog;
 }
 
 double ffdtw(DtwParm& q_parm, DtwParm& d_parm) {

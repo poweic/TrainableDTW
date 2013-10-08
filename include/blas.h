@@ -85,12 +85,28 @@ namespace blas {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, 1);
+    std::uniform_real_distribution<> dist(0, 1);
 
     foreach (i, v)
-      v[i] = dis(gen);
+      v[i] = dist(gen);
 
     return v;
+  }
+
+  template <typename T>
+  Matrix2D<T> rand(size_t m, size_t n) {
+
+    Matrix2D<T> R(m, n);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dist(0, 1);
+
+    for (size_t i=0; i<m; ++i)
+      for (size_t j=0; j<n; ++j)
+	R[i][j] = dist(gen);
+
+    return R;
   }
 
   // ===================

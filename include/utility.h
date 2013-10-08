@@ -11,7 +11,6 @@
 #include <cmath>
 #include <csignal>
 #include <sys/stat.h>
-#include <helper_timer.h>
 
 #include <color.h>
 using namespace std;
@@ -45,23 +44,6 @@ bool isInt(string str);
 
 vector<string> split(const string &s, char delim);
 vector<string>& split(const string &s, char delim, vector<string>& elems);
-
-namespace util {
-  class Timer {
-    public:
-      Timer(): timer(nullptr) { sdkCreateTimer(&timer); }
-      ~Timer() { sdkDeleteTimer(&timer); }
-
-      void start()	{ timer->start(); }
-      void stop()	{ timer->stop();  }
-      void reset()	{ timer->reset(); }
-
-      float getTime() { return timer->getTime(); }
-
-    private:
-      StopWatchInterface* timer;
-  };
-};
 
 inline bool exists (const string& name) {
   struct stat buffer;   

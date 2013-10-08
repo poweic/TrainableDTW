@@ -2,7 +2,7 @@
 #include <string>
 #include <color.h>
 #include <array.h>
-#include <profile.h>
+#include <perf.h>
 
 #include <dnn.h>
 
@@ -31,7 +31,7 @@ int main (int argc, char* argv[]) {
   const size_t MAX_ITR = 128;
   vec d(MAX_ITR);
 
-  util::Timer timer;
+  perf::Timer timer;
   timer.start();
   for (size_t i=0; i<MAX_ITR; ++i) {
     d[i] = evaluate(model, x, y);
