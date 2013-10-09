@@ -29,6 +29,14 @@ public:
 
   size_t getNLayer() const;
   size_t getDepth() const;
+  void getEmptyGradient(vector<mat>& g) {
+    g.resize(_weights.size());
+    foreach (i, _weights) {
+      int m = _weights[i].getRows();
+      int n = _weights[i].getCols();
+      g[i].resize(m, n);
+    }
+  }
 
   vector<mat>& getWeights();
   vector<size_t>& getDims();
@@ -58,13 +66,17 @@ public:
   void initHiddenOutputAndGradient();
 
   void train(const vec& x, const vec& y);
-  void evaluate(const vec& x, const vec& y);
+  float evaluate(const vec& x, const vec& y);
+  float evaluate(const float* x, const float* y);
   void calcGradient(const vec& x, const vec& y);
+  void calcGradient(const float* x, const float* y);
   void updateParameters(GRADIENT& g);
 
   HIDDEN_OUTPUT& getHiddenOutput();
   GRADIENT& getGradient();
-
+  void getEmptyGradient(GRADIENT& g);
+  void save(string folder);
+    
 private:
   HIDDEN_OUTPUT hidden_output;
   GRADIENT gradient;
@@ -77,10 +89,13 @@ private:
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
 GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2);
 GRADIENT& operator *= (GRADIENT& g, float c);
+GRADIENT& operator /= (GRADIENT& g, float c);
 
 GRADIENT operator + (GRADIENT g1, GRADIENT& g2);
 GRADIENT operator - (GRADIENT g1, GRADIENT& g2);
 GRADIENT operator * (GRADIENT g, float c);
+GRADIENT operator * (float c, GRADIENT g);
+GRADIENT operator / (GRADIENT g, float c);
 
 void print(GRADIENT& g);
 

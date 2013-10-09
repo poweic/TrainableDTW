@@ -32,15 +32,9 @@ inline double d_sigmoid(double x);
 //typedef vector<float>& cvec;
 typedef const float* cvec;
 
-class IDistanceGradient {
+class Bhattacharyya {
   public:
-    virtual double operator() (cvec x, cvec y, size_t k) const = 0;
-};
-
-
-class Bhattacharyya : public IDistanceGradient {
-  public:
-    virtual double operator() (cvec x, cvec y, size_t k) const;
+    vector<double> operator() (cvec x, cvec y) const;
 
     static vector<double>& getDiag();
     static void setDiag(const vector<double>& d);

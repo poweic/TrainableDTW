@@ -11,11 +11,13 @@
 #include <cmath>
 #include <csignal>
 #include <sys/stat.h>
+#include <fstream>
 
 #include <color.h>
 using namespace std;
 
 #define foreach(i, arr) for (size_t i=0; i<arr.size(); ++i)
+#define range(i, size) for (size_t i=0; i<size; ++i)
 #define reverse_foreach(i, arr) for (int i=(int)arr.size()-1; i>=0; --i)
 #define FLOAT_MIN (std::numeric_limits<float>::lowest())
 
@@ -100,6 +102,28 @@ void print(const vector<T>& v, size_t n_digits = 3) {
   printf("]\n");
 }
 
+template <typename T>
+void save(const vector<T>& v, string filename) {
+  ofstream fs(filename.c_str());
+
+  foreach (i, v)
+    fs << v[i] << endl;
+
+  fs.close();
+}
+
+template <typename T>
+vector<T> load(string filename) {
+  vector<T> v;
+  ifstream fs(filename.c_str());
+
+  T t;
+  while (fs >> t) 
+    v.push_back(t);
+
+  fs.close();
+  return v;
+}
 
 // ==============================================
 // ===== Split vectors in vector of vectors =====

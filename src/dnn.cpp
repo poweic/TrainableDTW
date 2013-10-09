@@ -1,4 +1,5 @@
 #include <dnn.h>
+#include <utility.h>
 
 vec loadvector(string filename) {
   Array<float> arr(filename);
@@ -107,7 +108,12 @@ void Model::initHiddenOutputAndGradient() {
   std::get<3>(gradient).resize(_dtw.getWeights().size());
 }
 
-void Model::evaluate(const vec& x, const vec& y) {
+float Model::evaluate(const float* x, const float* y) {
+  int length = _pp.getDims()[0];
+  return this->evaluate(vec(x, x+length), vec(y, y+length));
+}
+
+float Model::evaluate(const vec& x, const vec& y) {
 
   HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
 
@@ -120,12 +126,20 @@ void Model::evaluate(const vec& x, const vec& y) {
   Om = Ox.back() & Oy.back() & _w;
 
   _dtw.feedForward(Om, &Od);
+
+  auto d = Od[Od.size() - 1][0];
+  return d;
 }
 
 void Model::train(const vec& x, const vec& y) {
   this->evaluate(x, y);
   this->calcGradient(x, y);
   this->updateParameters(this->gradient);
+}
+
+void Model::calcGradient(const float* x, const float* y) {
+  int length = _pp.getDims()[0];
+  this->calcGradient(vec(x, x + length), vec(y, y+length));
 }
 
 void Model::calcGradient(const vec& x, const vec& y) {
@@ -153,11 +167,13 @@ void Model::calcGradient(const vec& x, const vec& y) {
 void Model::updateParameters(GRADIENT& g) {
   GRADIENT_ALIASING(g, ppg1, ppg2, mg, dtwg);
 
-  float learning_rate = -0.01;
+  float learning_rate = -0.001;
 
   vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i] += learning_rate * (ppg1[i] + ppg2[i]);
+    ppw[i] += learning_rate * (ppg1[i] + ppg2[i]); 
+
+  this->_w += learning_rate * mg;
 
   vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
@@ -172,14 +188,46 @@ GRADIENT& Model::getGradient() {
   return gradient;
 }
 
+void Model::getEmptyGradient(GRADIENT& g) {
+  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+
+  _pp.getEmptyGradient(g1);
+  _pp.getEmptyGradient(g2);
+
+  g3.resize(_dtw.getDims()[0]);
+
+  _dtw.getEmptyGradient(g4);
+}
+
+void Model::save(string folder) {
+
+  folder += "/";
+  
+  vector<mat>& ppw = _pp.getWeights();
+  foreach (i, ppw)
+    ppw[i].saveas(folder + "pp.w." + to_string(i));
+
+  ::save(this->_w, folder + "m.w");
+
+  vector<mat>& dtww = _dtw.getWeights();
+  foreach (i, dtww)
+    dtww[i].saveas(folder + "dtw.w." + to_string(i));
+}
+
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
   GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);
   GRADIENT_ALIASING(g2, g2_1, g2_2, g2_3, g2_4);
 
-  foreach (i, g1_1) g1_1[i] += g2_1[i];
-  foreach (i, g1_2) g1_2[i] += g2_2[i];
+  foreach (i, g1_1)
+    g1_1[i] += g2_1[i];
+
+  foreach (i, g1_2)
+    g1_2[i] += g2_2[i];
+
   g1_3 += g2_3; 
-  foreach (i, g1_4) g1_4[i] += g2_4[i];
+
+  foreach (i, g1_4)
+    g1_4[i] += g2_4[i];
 
   return g1;
 }
@@ -207,9 +255,15 @@ GRADIENT& operator *= (GRADIENT& g, float c) {
   return g;
 }
 
+GRADIENT& operator /= (GRADIENT& g, float c) {
+  return (g *= (float) 1.0 / c);
+}
+
 GRADIENT operator + (GRADIENT g1, GRADIENT& g2) { return (g1 += g2); }
 GRADIENT operator - (GRADIENT g1, GRADIENT& g2) { return (g1 -= g2); }
 GRADIENT operator * (GRADIENT g, float c) { return (g *= c); }
+GRADIENT operator * (float c, GRADIENT g) { return (g *= c); }
+GRADIENT operator / (GRADIENT g, float c) { return (g /= c); }
 
 void print(GRADIENT& g) {
   GRADIENT_ALIASING(g, g1, g2, g3, g4);

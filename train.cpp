@@ -7,16 +7,21 @@
 #include <utility.h>
 #include <profile.h>
 #include <blas.h>
+#include <dnn.h>
 
 #include <cdtw.h>
 #include <corpus.h>
 
+// #define MIDDLE_WIDTH 74
+#define MIDDLE_WIDTH 4
+#define HIDDEN_WIDTH 4
+#define PARAMETER_TYPE vector<double>
+
 using namespace DtwUtil;
 using namespace std;
 
-typedef Matrix2D<double> mat;
-
 double dtw(string f1, string f2, vector<double> *dTheta = NULL);
+double dtw_with_dnn(string f1, string f2, GRADIENT* dTheta);
 Array<string> getPhoneList(string filename);
 void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC_DIR, const size_t N);
 mat comparePhoneDistances(const Array<string>& phones);
@@ -26,25 +31,31 @@ double objective(const mat& scores);
 mat statistics (const Array<string>& phones);
 void updateTheta(vector<double>& theta, vector<double>& delta);
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores);
+
+vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
+GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model);
 void signalHandler(int param);
 void saveTheta();
 void regSignalHandler();
 
+void validation_with_dnn();
 void validation();
 void calcObjective(const vector<tsample>& samples);
+void calcObjective_with_dnn(const vector<tsample>& samples);
 
 void train(size_t batchSize);
 
 string scoreDir;
 vector<double> theta;
 size_t itr;
+Model model({39, HIDDEN_WIDTH, HIDDEN_WIDTH, MIDDLE_WIDTH}, {MIDDLE_WIDTH, HIDDEN_WIDTH, HIDDEN_WIDTH, 1});
 
 int main (int argc, char* argv[]) {
-
+  
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options")
-    .add("-p", "Choose either \"train\" or \"evaluate\".")
+    .add("-p", "Choose either \"validate\", \"train\" or \"evaluate\".")
     .add("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
 
   cmdParser
@@ -67,7 +78,7 @@ int main (int argc, char* argv[]) {
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
 
-  regSignalHandler();
+  //regSignalHandler();
 
   scoreDir = cmdParser.find("-d") + "/";
   exec("mkdir -p " + scoreDir);
@@ -85,6 +96,7 @@ int main (int argc, char* argv[]) {
   bool resume = cmdParser.find("--resume-training") == "true";
   bool reevaluate = cmdParser.find("--re-evaluate") == "true"; 
   SMIN::eta = stod(cmdParser.find("--eta"));
+  bool validationOnly = cmdParser.find("--validation-only") == "true";
 
   theta.resize(39);
   if (resume) {
@@ -96,11 +108,11 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
-  //validation();
-  //saveTheta();
-  //return 0;
-
-  if (phase == "train")
+  if (phase == "validate") {
+    validation_with_dnn();
+    //validation();
+  }
+  else if (phase == "train")
     train(batchSize);
   else if (phase == "evaluate") {
 
@@ -123,6 +135,36 @@ int main (int argc, char* argv[]) {
   return 0;
 }
 
+void validation_with_dnn() {
+  Corpus corpus("data/phones.txt");
+  const size_t MINIATURE_SIZE = 1000;
+  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
+
+  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
+
+  theta.resize(39);
+  fillwith(theta, 1);
+
+  for (itr=0; itr<10000; ++itr) {
+
+    GRADIENT dTheta, ddTheta;
+    model.getEmptyGradient(dTheta);
+    model.getEmptyGradient(ddTheta);
+
+    foreach (i, samples) {
+      auto cscore = dtw_with_dnn(samples[i].first.first, samples[i].first.second, &ddTheta);
+      bool positive = samples[i].second;
+      dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
+    }
+
+    dTheta /= samples.size();
+    model.updateParameters(dTheta);
+
+    calcObjective_with_dnn(samples);
+    model.save("data/dtwdnn.model/");
+  }
+}
+
 void validation() {
   Corpus corpus("data/phones.txt");
   const size_t MINIATURE_SIZE = 1000;
@@ -133,39 +175,90 @@ void validation() {
   theta.resize(39);
   fillwith(theta, 1);
 
-
-  int npos = 0;
-  foreach (i, samples) {
-    if(samples[i].second) npos++;
-  }
-  mylog(npos);
-  mylog(samples.size() - npos);
-
   for (itr=0; itr<10000; ++itr) {
 
-    auto t = theta;
-
-    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
-    vector<double> dTheta(39);
+    PARAMETER_TYPE dTheta(39);
+    PARAMETER_TYPE ddTheta(39);
     foreach (i, samples) {
-      vector<double> dThetaPerSample(39);
-      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
+      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
       bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
+      dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
     }
 
     dTheta = dTheta / (double) samples.size();
     updateTheta(theta, dTheta);
-    //print(dTheta);
-    //double diff = norm(theta - t);
-    //debug(diff);
-    // printf("#"BLUE"%5lu:"COLOREND"\tdiff = "GREEN "%.6e" COLOREND ":\t", itr, diff);
-    //print(theta);
 
     saveTheta();
     calcObjective(samples);
   }
-  
+}
+
+#define DTW_PARAM_ALIASING \
+size_t dim = dtw->getFeatureDimension();\
+double cScore = dtw->getCumulativeScore();\
+const auto& Q = dtw->getQ();\
+const auto& D = dtw->getD();\
+auto& alpha = const_cast<TwoDimArray<float>&>(dtw->getAlpha());\
+auto& beta  = const_cast<TwoDimArray<float>&>(dtw->getBeta());
+
+GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
+  DTW_PARAM_ALIASING;
+  // TODO Need to convert GRADIENT from std::tuple to Self-Defined Class
+  // , in order to have a default constructor
+  if (cScore == 0)
+    return GRADIENT();
+
+  GRADIENT g;
+  model.getEmptyGradient(g);
+
+  range(i, dtw->qLength()) {
+    range(j, dtw->dLength()) {
+	const float* qi = Q[i], *dj = D[j];
+	double coeff = alpha(i, j) + beta(i, j) - cScore;
+	coeff = exp(SMIN::eta * coeff);
+
+	model.calcGradient(qi, dj);
+	auto gg = coeff * (model.getGradient());
+	g += gg;
+    }
+  }
+
+  return g;
+}
+
+vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
+  DTW_PARAM_ALIASING;
+  if (cScore == 0)
+    return vector<double>(dim);
+
+  vector<double> dTheta(dim);
+  fillzero(dTheta);
+
+  Bhattacharyya gradient;
+
+  range(i, dtw->qLength()) {
+    range(j, dtw->dLength()) {
+	const float* qi = Q[i], *dj = D[j];
+	double coeff = alpha(i, j) + beta(i, j) - cScore;
+	coeff = exp(SMIN::eta * coeff);
+
+	dTheta += coeff * gradient(qi, dj);
+    }
+  }
+
+  return dTheta;
+}
+
+void calcObjective_with_dnn(const vector<tsample>& samples) {
+
+  double obj = 0;
+  foreach (i, samples) {
+    auto cscore = dtw_with_dnn(samples[i].first.first, samples[i].first.second, NULL);
+    bool positive = samples[i].second;
+    obj += (positive) ? cscore : (-cscore);
+  }
+
+  printf("%.5f\n", obj);
 }
 
 void calcObjective(const vector<tsample>& samples) {
@@ -178,8 +271,6 @@ void calcObjective(const vector<tsample>& samples) {
   }
 
   printf("%.5f\n", obj);
-  //cout << "objective = " << GREEN << obj << COLOREND << endl;
-  //cin.get();
 }
 
 void train(size_t batchSize) {
@@ -394,22 +485,41 @@ void updateTheta(vector<double>& theta, vector<double>& delta) {
     theta[i] -= learning_rate*delta[i];
 
   // Enforce every diagonal element >= 0
-
-  // theta = theta / vecsum(theta); <== This is kind of erroneous
-  // , 'cause this isn't the way updating theta ( according to Gradient Descent)
-  // , and therefore the objective function is not gauranteed to be monotonically Inc/Dec
-  //theta = vmax(0, theta);
+  theta = vmax(0, theta);
 
   Bhattacharyya::setDiag(theta);
 }
 
-double dtw(string q_fname, string d_fname, vector<double> *dTheta) {
+float dnn_fn(const float* x, const float* y, const int size) {
+  return model.evaluate(x, y);
+}
+
+double dtw_with_dnn(string f1, string f2, GRADIENT* dTheta) {
   static vector<float> hypo_score;
   static vector<pair<int, int> > hypo_bound;
   hypo_score.clear(); hypo_bound.clear();
 
-  DtwParm q_parm(q_fname);
-  DtwParm d_parm(d_fname);
+  DtwParm q_parm(f1);
+  DtwParm d_parm(f2);
+  FrameDtwRunner::nsnippet_ = 10;
+
+  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(dnn_fn);
+  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+  dtwRunner.DTW();
+
+  if (dTheta != NULL)
+    *dTheta = calcDeltaTheta(&dtwRunner, ::model);
+
+  return dtwRunner.getCumulativeScore();
+}
+
+double dtw(string f1, string f2, vector<double> *dTheta) {
+  static vector<float> hypo_score;
+  static vector<pair<int, int> > hypo_bound;
+  hypo_score.clear(); hypo_bound.clear();
+
+  DtwParm q_parm(f1);
+  DtwParm d_parm(f2);
   FrameDtwRunner::nsnippet_ = 10;
 
   //FrameDtwRunner *dtwRunner;
@@ -419,16 +529,11 @@ double dtw(string q_fname, string d_fname, vector<double> *dTheta) {
   dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
   dtwRunner.DTW();
 
-  //vector<double> ddTheta = ;
   if (dTheta != NULL)
     *dTheta = calcDeltaTheta(&dtwRunner);
 
   return dtwRunner.getCumulativeScore();
 }
-
-/*int exec(string cmd) {
-  return system(cmd.c_str());
-}*/
 
 Array<string> getPhoneList(string filename) {
 
@@ -484,4 +589,6 @@ void regSignalHandler () {
   if (signal (SIGINT, signalHandler) == SIG_ERR)
     cerr << "Cannot catch signal" << endl;
 }
+
+
 

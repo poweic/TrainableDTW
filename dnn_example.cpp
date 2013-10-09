@@ -17,7 +17,6 @@ vector<T>& operator += (vector<T>& x, vector<T>& y) {
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
 void print(GRADIENT& g);
 GRADIENT& calcGradient(Model& model, const vec& x, const vec& y);
-float evaluate(Model& model, const vec& x, const vec& y);
 
 int main (int argc, char* argv[]) {
   vec x = loadvector("data/test.vx");
@@ -34,7 +33,7 @@ int main (int argc, char* argv[]) {
   perf::Timer timer;
   timer.start();
   for (size_t i=0; i<MAX_ITR; ++i) {
-    d[i] = evaluate(model, x, y);
+    d[i] = model.evaluate(x, y);
 
     model.calcGradient(x, y);
     model.updateParameters(model.getGradient());
@@ -53,12 +52,5 @@ GRADIENT& calcGradient(Model& model, const vec& x, const vec& y) {
   model.evaluate(x, y); 
   model.calcGradient(x, y);
   return model.getGradient();
-}
-
-float evaluate(Model& model, const vec& x, const vec& y) {
-  model.evaluate(x, y);
-  auto& o = std::get<3>(model.getHiddenOutput());
-  auto d = o[o.size() - 1][0];
-  return d;
 }
 
