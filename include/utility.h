@@ -83,13 +83,6 @@ T norm(const vector<T>& v) {
 }
 
 template <typename T>
-T vecsum(const vector<T>& v) {
-  T sum = 0;
-  foreach (i, v) sum += v[i];
-  return sum;
-}
-
-template <typename T>
 void normalize(vector<T>& v, int type = 2) {
   T n = (type == 2) ? norm(v) : vecsum(v);
   if (n == 0) return;
@@ -109,28 +102,6 @@ void print(const vector<T>& v, size_t n_digits = 6) {
   printf("]\n");
 }
 
-template <typename T>
-void save(const vector<T>& v, string filename) {
-  ofstream fs(filename.c_str());
-
-  foreach (i, v)
-    fs << v[i] << endl;
-
-  fs.close();
-}
-
-template <typename T>
-vector<T> load(string filename) {
-  vector<T> v;
-  ifstream fs(filename.c_str());
-
-  T t;
-  while (fs >> t) 
-    v.push_back(t);
-
-  fs.close();
-  return v;
-}
 // ==============================================
 // ===== Split vectors in vector of vectors =====
 // ==============================================

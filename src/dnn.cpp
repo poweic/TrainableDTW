@@ -9,7 +9,7 @@ vec loadvector(string filename) {
   return v;
 }
 
-DNN::DNN(dim_list dims): _dims(dims) {
+DNN::DNN(const vector<size_t>& dims): _dims(dims) {
   _weights.resize(_dims.size() - 1);
 
   foreach (i, _weights) {
@@ -86,8 +86,8 @@ vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
 
   vec p(x);
   reverse_foreach (i, _weights) {
-    (*gradient)[i] = p * (*O)[i];
-    p = (*O)[i] & ( 1.0 - (*O)[i] ) & (_weights[i] * p);
+    (*gradient)[i] = (*O)[i] * p;
+    p = (*O)[i] & ( (float) 1.0 - (*O)[i] ) & (_weights[i] * p);
 
     // Remove bias
     p.pop_back();
@@ -98,20 +98,20 @@ vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
 // ===============================
 // ===== Class DTW-DNN Model =====
 // ===============================
-Model::Model(dim_list pp_dim, dim_list dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
+Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
   _w = ext::rand<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
 void Model::initHiddenOutputAndGradient() {
 
-  std::get<0>(hidden_output).resize(_pp.getNLayer());
-  std::get<1>(hidden_output).resize(_pp.getNLayer());
-  std::get<3>(hidden_output).resize(_dtw.getNLayer());
+  hidden_output.hox.resize(_pp.getNLayer());
+  hidden_output.hoy.resize(_pp.getNLayer());
+  hidden_output.hod.resize(_dtw.getNLayer());
 
-  std::get<0>(gradient).resize(_pp.getWeights().size());
-  std::get<1>(gradient).resize(_pp.getWeights().size());
-  std::get<3>(gradient).resize(_dtw.getWeights().size());
+  gradient.grad1.resize(_pp.getWeights().size());
+  gradient.grad2.resize(_pp.getWeights().size());
+  gradient.grad4.resize(_dtw.getWeights().size());
 }
 
 float Model::evaluate(const float* x, const float* y) {
@@ -162,8 +162,8 @@ void Model::calcGradient(const vec& x, const vec& y) {
   auto px = p & Oy.back() & _w;
   auto py = p & Ox.back() & _w;
 
-  px = (px - vecsum(px & Ox.back()) ) & Ox.back();
-  py = (py - vecsum(py & Oy.back()) ) & Oy.back();
+  px = (px - ext::sum(px & Ox.back()) ) & Ox.back();
+  py = (py - ext::sum(py & Oy.back()) ) & Oy.back();
 
   // ==============================================
   _pp.backPropagate(px, &Ox, &ppg1);
@@ -212,7 +212,7 @@ void Model::load(string folder) {
   foreach (i, ppw)
     ppw[i] = mat(folder + "pp.w." + to_string(i));
 
-  this->_w = ::load<float>(folder + "m.w");
+  ext::load<float>(this->_w, folder + "m.w");
 
   vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
@@ -227,7 +227,7 @@ void Model::save(string folder) const {
   foreach (i, ppw)
     ppw[i].saveas(folder + "pp.w." + to_string(i));
 
-  ::save(this->_w, folder + "m.w");
+  ext::save(this->_w, folder + "m.w");
 
   const vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)

@@ -1,3 +1,6 @@
+#ifndef __MATH_EXT_H_
+#define __MATH_EXT_H_
+
 #include <vector>
 #include <time.h>
 #include <cstdlib>
@@ -6,6 +9,46 @@
 #include <functional.inl>
 
 namespace ext {
+  // ========================
+  // ===== Save as File =====
+  // ========================
+  template <typename T>
+  void save(const vector<T>& v, string filename) {
+    ofstream fs(filename.c_str());
+
+    foreach (i, v)
+      fs << v[i] << endl;
+
+    fs.close();
+  }
+
+  // ==========================
+  // ===== Load from File =====
+  // ==========================
+  template <typename T>
+  void load(vector<T>& v, string filename) {
+    v.clear();
+
+    ifstream fs(filename.c_str());
+
+    T t;
+    while (fs >> t) 
+      v.push_back(t);
+
+    fs.close();
+  }
+
+  // =================================
+  // ===== Summation over Vector =====
+  // =================================
+  template <typename T>
+  T sum(const vector<T>& v) {
+    T s = 0;
+    foreach (i, v)
+      s += v[i];
+    return s;
+  }
+
   // ==================================
   // ===== First Order Difference =====
   // ==================================
@@ -54,7 +97,7 @@ namespace ext {
     foreach (i, s)
       s[i] = exp(x[i]);
 
-    T denominator = 1.0 / vecsum(s);
+    T denominator = 1.0 / ext::sum(s);
     foreach (i, s)
       s[i] *= denominator;
 
@@ -83,3 +126,5 @@ namespace ext {
   }
   
 };
+
+#endif

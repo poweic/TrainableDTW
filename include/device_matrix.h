@@ -3,6 +3,7 @@
 
 #include <matrix.h>
 #include <cassert>
+#include <string>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -34,7 +35,12 @@ template <typename T>
 class device_matrix {
 public:
   // default constructor 
+  device_matrix();
+
   device_matrix(size_t r, size_t c);
+
+  // Load from file. Ex: *.mat in text-form
+  device_matrix(const string& filename);
 
   // Copy Constructor 
   device_matrix(const device_matrix<T>& source);
@@ -107,6 +113,7 @@ public:
   size_t getRows() const { return _rows; }
   size_t getCols() const { return _cols; }
   T* getData() const { return _data; }
+  void saveas(const string& filename) const;
 
   static CUBLAS_HANDLE _handle;
 
@@ -136,6 +143,11 @@ void sgemm(const dmat& A, const dmat& B, dmat& C, float alpha = 1.0, float beta 
 void sgeam(const dmat& A, const dmat& B, dmat& C, float alpha = 1.0, float beta = 1.0);
 float snrm2(const dmat& A);
 
+
+template <typename T>
+device_matrix<T> operator * (T alpha, const device_matrix<T>& m) {
+  return m * alpha;
+}
 
 template <typename T>
 T matsum(const device_matrix<T>& A) {

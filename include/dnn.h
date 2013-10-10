@@ -2,7 +2,7 @@
 #define __DNN_H_
 
 #include <blas.h>
-#include <math_ext.h>
+#include <device_blas.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -12,17 +12,17 @@ using namespace std;
 
 typedef Matrix2D<float> mat;
 typedef vector<float> vec;
+// typedef device_matrix<float> mat;
+// typedef thrust::device_vector<float> vec;
 
-typedef initializer_list<size_t> dim_list;
-typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
-typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
-//typedef thrust::host_vector<float> vec;
+// typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
+// typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
 
 vec loadvector(string filename);
 
 class DNN {
 public:
-  DNN(dim_list dims);
+  DNN(const vector<size_t>& dims);
 
   void randInit();
   void feedForward(const vec& x, vector<vec>* hidden_output);
@@ -43,21 +43,39 @@ private:
   vector<mat> _weights;
 };
 
-#define HIDDEN_OUTPUT_ALIASING(tuple, x, y, z, w) \
-vector<vec>& x	= std::get<0>(tuple); \
-vector<vec>& y	= std::get<1>(tuple); \
-vec& z		= std::get<2>(tuple); \
-vector<vec>& w	= std::get<3>(tuple);
+#define HIDDEN_OUTPUT_ALIASING(O, x, y, z, w) \
+vector<vec>& x	= O.hox; \
+vector<vec>& y	= O.hoy; \
+vec& z		= O.hoz; \
+vector<vec>& w	= O.hod;
 
-#define GRADIENT_ALIASING(tuple, g1, g2, g3, g4) \
-vector<mat>& g1	= std::get<0>(tuple); \
-vector<mat>& g2 = std::get<1>(tuple); \
-vec& g3		= std::get<2>(tuple); \
-vector<mat>& g4 = std::get<3>(tuple);
+#define GRADIENT_ALIASING(g, g1, g2, g3, g4) \
+vector<mat>& g1	= g.grad1; \
+vector<mat>& g2 = g.grad2; \
+vec& g3		= g.grad3; \
+vector<mat>& g4 = g.grad4;
+
+class HIDDEN_OUTPUT {
+  public:
+    vector<vec> hox;
+    vector<vec> hoy;
+    vec hoz;
+    vector<vec> hod;
+};
+
+
+class GRADIENT {
+  public:
+    vector<mat> grad1;
+    vector<mat> grad2;
+    vec grad3;
+    vector<mat> grad4;
+};
 
 class Model {
 public:
-  Model(dim_list pp_dim, dim_list dtw_dim);
+
+  Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim);
 
   void load(string filename);
   void initHiddenOutputAndGradient();
@@ -74,7 +92,7 @@ public:
   void getEmptyGradient(GRADIENT& g);
   void save(string folder) const;
   void print() const;
-    
+ 
 private:
   HIDDEN_OUTPUT hidden_output;
   GRADIENT gradient;

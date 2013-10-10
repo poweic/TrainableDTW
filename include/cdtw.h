@@ -9,6 +9,7 @@
 using namespace DtwUtil;
 
 #include <logarithmetics.h>
+#include <math_ext.h>
 
 #define SOFT_POWER 4
 

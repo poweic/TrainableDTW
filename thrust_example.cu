@@ -21,20 +21,6 @@ typedef Matrix2D<float> mat;
 typedef vector<float> vec;
 typedef thrust::device_vector<float> dvec;
 
-template <typename T>
-void print(const thrust::host_vector<T>& v) {
-  printf("[");
-  foreach (i, v)
-    printf("%.6f ", v[i]);
-  printf("]\n");
-}
-
-template <typename T>
-void print(const thrust::device_vector<T>& v) {
-  thrust::host_vector<T> hv(v);
-  print(hv);
-}
-
 using namespace std;
 int cublas_example();
 bool device_blas_testing_examples();
@@ -139,8 +125,9 @@ bool device_blas_testing_examples() {
   // ===== Matrix - vector multiplication =====
   // ==========================================
   printf("\nTest Case #6: Matrix - Vector operations\n");
-  vec hx = load<float>("testing/matrix_lib/x.vec");
-  vec hy = load<float>("testing/matrix_lib/y.vec");
+  vec hx, hy;
+  ext::load<float>(hx, "testing/matrix_lib/x.vec");
+  ext::load<float>(hy, "testing/matrix_lib/y.vec");
   dvec dx(hx);
   dvec dy(hy);
 

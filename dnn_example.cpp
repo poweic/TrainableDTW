@@ -24,8 +24,11 @@ int main (int argc, char* argv[]) {
 
   int M = 74;
   int WIDTH = 40;
-  Model model({39, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, M}, {M, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, WIDTH, 1});
-  // auto g = calcGradient(model, x, y);
+  vector<size_t> d1(4), d2(4);
+  d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = M;
+  d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = 1;
+
+  Model model(d1, d2);
 
   const size_t MAX_ITR = 128;
   vec d(MAX_ITR);
@@ -38,9 +41,6 @@ int main (int argc, char* argv[]) {
     model.calcGradient(x, y);
     model.updateParameters(model.getGradient());
   }
-
-  //print(d, 5);
-  //print(blas::diff1st(d), 5);
   
   printf("%f ms in total, avg %f ms per upate\n", timer.getTime(), timer.getTime() / MAX_ITR);
 

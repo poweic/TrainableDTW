@@ -27,8 +27,8 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp blas.cpp
-EXECUTABLES=train extract test calc-acoustic-similarity 
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp dnn.cpp
+EXECUTABLES=extract test calc-acoustic-similarity #train 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
  
 .PHONY: debug all o3 example
@@ -82,8 +82,9 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-dnn_example: $(OBJ) dnn_example.cpp dnn.h
-	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#dnn.h obj/dnn.o
+dnn_example: $(OBJ) dnn_example.cpp
+	$(CXX) -w $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
 thrust_example: $(OBJ) thrust_example.cu obj/device_matrix.o 
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas

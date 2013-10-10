@@ -17,6 +17,20 @@ T norm(const thrust::device_vector<T>& v) {
   return std::sqrt( thrust::transform_reduce(v.begin(), v.end(), func::square<T>(), 0, thrust::plus<T>()) );
 }
 
+template <typename T>
+void print(const thrust::host_vector<T>& v) {
+  printf("[");
+  for (size_t i=0; i<v.size(); ++i)
+    printf("%.6f ", v[i]);
+  printf("]\n");
+}
+
+template <typename T>
+void print(const thrust::device_vector<T>& v) {
+  thrust::host_vector<T> hv(v);
+  print(hv);
+}
+
 // =====================================
 // ===== Matrix - Vector Operators =====
 // =====================================
@@ -88,11 +102,87 @@ VECTOR<T> operator * (const VECTOR<T>& v, const MATRIX<T>& m) {
 
 namespace ext {
   template <typename T>
+  vector<T> toStlVector(const thrust::device_vector<T>& v) {
+    vector<T> stl_vector(v.size());
+    thrust::copy(v.begin(), v.end(), stl_vector.begin());
+    return stl_vector;
+  }
+
+  template <typename T>
+  thrust::device_vector<T> toDeviceVector(const vector<T>& v) {
+    return thrust::device_vector<T>(v.begin(), v.end());
+  }
+
+  // ========================
+  // ===== Save as File =====
+  // ========================
+  template <typename T>
+  void save(const thrust::device_vector<T>& v, string filename) {
+    ext::save(toStlVector(v), filename);
+  }
+
+  // ==========================
+  // ===== Load from File =====
+  // ==========================
+  template <typename T>
+  void load(thrust::device_vector<T>& v, string filename) {
+    vector<T> hv;
+    ext::load<T>(hv, filename);
+    thrust::copy(hv.begin(), hv.end(), v.begin());
+  }
+  // =================================
+  // ===== Summation over Vector =====
+  // =================================
+  template <typename T>
+  T sum(const thrust::device_vector<T>& v) {
+    return thrust::reduce(v.begin(), v.end());
+  }
+
+  // ================
+  // ===== Rand =====
+  // ================
+  template <typename T>
   void rand(device_matrix<T>& m) {
     Matrix2D<T> h_m;
     rand(h_m);
     m = device_matrix<T>(h_m);
   }
+  // ===================
+  // ===== SoftMax =====
+  // ===================
+  template <typename T>
+  thrust::device_vector<T> softmax(const thrust::device_vector<T>& x) {
+    thrust::device_vector<T> s(x.size());
+
+    thrust::transform(x.begin(), x.end(), s.begin(), func::exp<T>());
+
+    T denominator = 1.0 / ext::sum(s);
+    thrust::transform(s.begin(), s.end(), s.begin(), func::ax<T>(denominator));
+
+    return s;
+  }
+
+  // ============================
+  // ===== Sigmoid Function =====
+  // ============================
+  template <typename T>
+  thrust::device_vector<T> sigmoid(const thrust::device_vector<T>& x) {
+    thrust::device_vector<T> s(x.size());
+    thrust::transform(x.begin(), x.end(), s.begin(), func::sigmoid<T>());
+    return s;
+  }
+
+  // ================================
+  // ===== Biased after Sigmoid =====
+  // ================================
+  template <typename T>
+  thrust::device_vector<T> b_sigmoid(const thrust::device_vector<T>& x) {
+    thrust::device_vector<T> s(x.size() + 1);
+    thrust::transform(x.begin(), x.end(), s.begin(), func::sigmoid<T>());
+    s[s.size() - 1] = 1.0;
+    return s;
+  }
+
 };
 
 #undef VECTOR
