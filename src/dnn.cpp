@@ -53,13 +53,8 @@ void DNN::randInit() {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> dis(0, 1);
 
-  foreach (i, _weights) {
-    mat& w = _weights[i];
-    for (size_t r=0; r<w.getRows(); ++r)
-      for (size_t c=0; c<w.getCols(); ++c)
-	w[r][c] = dis(gen);
-
-  }
+  foreach (i, _weights)
+    ext::rand(_weights[i]);
 }
 
 // ========================
@@ -76,10 +71,10 @@ void DNN::feedForward(const vec& x, vector<vec>* hidden_output) {
   std::copy(x.begin(), x.end(), O[0].begin());
 
   for (size_t i=1; i<O.size() - 1; ++i)
-    O[i] = blas::b_sigmoid(O[i-1] * _weights[i-1]);
+    O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
 
   size_t end = O.size() - 1;
-  O[end] = blas::sigmoid(O[end - 1] * _weights[end - 1]);
+  O[end] = ext::sigmoid(O[end - 1] * _weights[end - 1]);
 }
 
 // ============================
@@ -104,7 +99,7 @@ vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
 // ===== Class DTW-DNN Model =====
 // ===============================
 Model::Model(dim_list pp_dim, dim_list dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
-  _w = blas::rand<float>(_dtw.getDims()[0]);
+  _w = ext::rand<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
@@ -131,8 +126,8 @@ float Model::evaluate(const vec& x, const vec& y) {
   _pp.feedForward(x, &Ox);
   _pp.feedForward(y, &Oy);
 
-  Ox.back() = blas::softmax(Ox.back());
-  Oy.back() = blas::softmax(Oy.back());
+  Ox.back() = ext::softmax(Ox.back());
+  Oy.back() = ext::softmax(Oy.back());
 
   Om = Ox.back() & Oy.back() & _w;
 

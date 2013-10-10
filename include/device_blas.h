@@ -2,6 +2,7 @@
 #define __DEVICE_BLAS_H_
 
 #include <device_matrix.h>
+#include <math_ext.h>
 
 // ====================================
 // ===== Vector Utility Functions =====
@@ -85,11 +86,21 @@ VECTOR<T> operator * (const VECTOR<T>& v, const MATRIX<T>& m) {
   return result;
 }
 
+namespace ext {
+  template <typename T>
+  void rand(device_matrix<T>& m) {
+    Matrix2D<T> h_m;
+    rand(h_m);
+    m = device_matrix<T>(h_m);
+  }
+};
+
 #undef VECTOR
 #undef MATRIX
 
 #define VECTOR thrust::device_vector
 #define WHERE thrust
+#include <functional.inl>
 #include <blas.inl>
 #undef VECTOR
 #undef WHERE

@@ -37,14 +37,14 @@ void print(const thrust::device_vector<T>& v) {
 
 using namespace std;
 int cublas_example();
-
 bool device_blas_testing_examples();
 
 int main (int argc, char* argv[]) {
+  device_matrix<float> dm(10, 10);
+  ext::rand(dm);
 
   blas_testing_examples();
   device_blas_testing_examples();
-
 }
 
 template <typename T>
