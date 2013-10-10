@@ -29,57 +29,41 @@ vector<double>& Bhattacharyya::getDiag() {
   return Bhattacharyya::_diag;
 }
 
+void Bhattacharyya::setDiagFromFile(const string& theta_filename) {
+  if (theta_filename.empty())
+    return;
+
+  vector<double> diag = ::load<double>(theta_filename);
+  Bhattacharyya::setDiag(diag);
+}
+
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 
-  /*vector<double> diag(Bhattacharyya::_diag);
-  normalize(diag, 1);*/
-
   for (int i = 0; i < size; ++i)
-    ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
+    ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
+    //ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
   ret = sqrt(ret);
+
+  /*float ret_0 = 0.0;
+  for (int i = 0; i < size; ++i)
+    ret_0 += pow(a[i] - b[i], 2);
+  ret_0 = sqrt(ret_0);
+
+  printf("%.4f\t%.4f\n", ret_0, ret);*/
+
   return ret;
 }
 
-double Bhattacharyya::operator() (cvec x, cvec y, size_t k) const {
-  double partial = pow(x[k] - y[k], 2) * d_sigmoid(Bhattacharyya::_diag[k]);
+vector<double> Bhattacharyya::operator() (cvec x, cvec y) const {
+  vector<double> partial(DIM_DEFAULT);
+  foreach (i, partial)
+    partial[i] = pow(x[i] - y[i], 2); // * d_sigmoid(Bhattacharyya::_diag[k]);
   return partial;
 }
 
 // ====================================================================
 
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
-  size_t dim = dtw->getFeatureDimension();
-  size_t nParameters = dim;
-  vector<double> dTheta(nParameters);
-  double cScore = dtw->getCumulativeScore();
-  if (cScore == 0)
-    return dTheta;
-
-  const auto& Q = dtw->getQ();
-  const auto& D = dtw->getD();
-
-  typedef TwoDimArray<float> Table;
-  Table& alpha = const_cast<Table&>(dtw->getAlpha());
-  Table& beta = const_cast<Table&>(dtw->getBeta());
-
-  fillzero(dTheta);
-
-  Bhattacharyya gradient;
-
-  for (size_t i=0; i<dtw->qLength(); ++i) {
-    for (size_t j=0; j<dtw->dLength(); ++j) {
-	const float* qi = Q[i], *dj = D[j];
-	double coeff = alpha(i, j) + beta(i, j) - cScore;
-	coeff = exp(SMIN::eta * coeff);
-
-	foreach (k, dTheta)
-	  dTheta[k] += coeff * gradient(qi, dj, k);
-    }
-  }
-
-  return dTheta;
-}
 
 namespace DtwUtil {
   

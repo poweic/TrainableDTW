@@ -2,6 +2,7 @@
 #define __DNN_H_
 
 #include <blas.h>
+#include <math_ext.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -29,9 +30,13 @@ public:
 
   size_t getNLayer() const;
   size_t getDepth() const;
+  void getEmptyGradient(vector<mat>& g) const;
+  void print() const;
 
   vector<mat>& getWeights();
+  const vector<mat>& getWeights() const;
   vector<size_t>& getDims();
+  const vector<size_t>& getDims() const;
 
 private:
   vector<size_t> _dims;
@@ -58,13 +63,18 @@ public:
   void initHiddenOutputAndGradient();
 
   void train(const vec& x, const vec& y);
-  void evaluate(const vec& x, const vec& y);
+  float evaluate(const vec& x, const vec& y);
+  float evaluate(const float* x, const float* y);
   void calcGradient(const vec& x, const vec& y);
+  void calcGradient(const float* x, const float* y);
   void updateParameters(GRADIENT& g);
 
   HIDDEN_OUTPUT& getHiddenOutput();
   GRADIENT& getGradient();
-
+  void getEmptyGradient(GRADIENT& g);
+  void save(string folder) const;
+  void print() const;
+    
 private:
   HIDDEN_OUTPUT hidden_output;
   GRADIENT gradient;
@@ -73,5 +83,18 @@ private:
   DNN _pp;
   DNN _dtw;
 };
+
+GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
+GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2);
+GRADIENT& operator *= (GRADIENT& g, float c);
+GRADIENT& operator /= (GRADIENT& g, float c);
+
+GRADIENT operator + (GRADIENT g1, GRADIENT& g2);
+GRADIENT operator - (GRADIENT g1, GRADIENT& g2);
+GRADIENT operator * (GRADIENT g, float c);
+GRADIENT operator * (float c, GRADIENT g);
+GRADIENT operator / (GRADIENT g, float c);
+
+void print(GRADIENT& g);
 
 #endif  // __DNN_H_

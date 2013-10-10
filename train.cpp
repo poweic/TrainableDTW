@@ -7,16 +7,18 @@
 #include <utility.h>
 #include <profile.h>
 #include <blas.h>
+#include <dnn.h>
 
 #include <cdtw.h>
+#include <trainable_dtw.h>
 #include <corpus.h>
+
+#define MIDDLE_WIDTH 74
+#define HIDDEN_WIDTH 40
 
 using namespace DtwUtil;
 using namespace std;
 
-typedef Matrix2D<double> mat;
-
-double dtw(string f1, string f2, vector<double> *dTheta = NULL);
 Array<string> getPhoneList(string filename);
 void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC_DIR, const size_t N);
 mat comparePhoneDistances(const Array<string>& phones);
@@ -24,27 +26,22 @@ double average(const mat& m, const double MIN = -3.40e+34);
 // int exec(string cmd);
 double objective(const mat& scores);
 mat statistics (const Array<string>& phones);
-void updateTheta(vector<double>& theta, vector<double>& delta);
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores);
+
 void signalHandler(int param);
-void saveTheta();
 void regSignalHandler();
-
-void validation();
-void calcObjective(const vector<tsample>& samples);
-
-void train(size_t batchSize);
 
 string scoreDir;
 vector<double> theta;
 size_t itr;
+Model model({39, HIDDEN_WIDTH, HIDDEN_WIDTH, MIDDLE_WIDTH}, {MIDDLE_WIDTH, HIDDEN_WIDTH, HIDDEN_WIDTH, 1});
 
 int main (int argc, char* argv[]) {
-
+  
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options")
-    .add("-p", "Choose either \"train\" or \"evaluate\".")
+    .add("-p", "Choose either \"validate\", \"train\" or \"evaluate\".")
     .add("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
 
   cmdParser
@@ -67,7 +64,7 @@ int main (int argc, char* argv[]) {
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
 
-  regSignalHandler();
+  //regSignalHandler();
 
   scoreDir = cmdParser.find("-d") + "/";
   exec("mkdir -p " + scoreDir);
@@ -85,6 +82,7 @@ int main (int argc, char* argv[]) {
   bool resume = cmdParser.find("--resume-training") == "true";
   bool reevaluate = cmdParser.find("--re-evaluate") == "true"; 
   SMIN::eta = stod(cmdParser.find("--eta"));
+  bool validationOnly = cmdParser.find("--validation-only") == "true";
 
   theta.resize(39);
   if (resume) {
@@ -96,12 +94,16 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
-  //validation();
-  //saveTheta();
-  //return 0;
+  //model.load("data/dtwdnn.model/");
 
-  if (phase == "train")
-    train(batchSize);
+  if (phase == "validate") {
+    dtwdnn::validation();
+    //dtwdiag39::validation();
+  }
+  else if (phase == "train") {
+    //dtwdiag39::train(batchSize);
+    dtwdnn::train(batchSize);
+  }
   else if (phase == "evaluate") {
 
     if (reevaluate)
@@ -119,110 +121,8 @@ int main (int argc, char* argv[]) {
 
   profile.toc();
 
-  saveTheta();
+  dtwdiag39::saveTheta();
   return 0;
-}
-
-void validation() {
-  Corpus corpus("data/phones.txt");
-  const size_t MINIATURE_SIZE = 1000;
-  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
-
-  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-  theta.resize(39);
-  fillwith(theta, 1);
-
-
-  int npos = 0;
-  foreach (i, samples) {
-    if(samples[i].second) npos++;
-  }
-  mylog(npos);
-  mylog(samples.size() - npos);
-
-  for (itr=0; itr<10000; ++itr) {
-
-    auto t = theta;
-
-    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
-    vector<double> dTheta(39);
-    foreach (i, samples) {
-      vector<double> dThetaPerSample(39);
-      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
-      bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
-    }
-
-    dTheta = dTheta / (double) samples.size();
-    updateTheta(theta, dTheta);
-    //print(dTheta);
-    //double diff = norm(theta - t);
-    //debug(diff);
-    // printf("#"BLUE"%5lu:"COLOREND"\tdiff = "GREEN "%.6e" COLOREND ":\t", itr, diff);
-    //print(theta);
-
-    saveTheta();
-    calcObjective(samples);
-  }
-  
-}
-
-void calcObjective(const vector<tsample>& samples) {
-
-  double obj = 0;
-  foreach (i, samples) {
-    auto cscore = dtw(samples[i].first.first, samples[i].first.second);
-    bool positive = samples[i].second;
-    obj += (positive) ? cscore : (-cscore);
-  }
-
-  printf("%.5f\n", obj);
-  //cout << "objective = " << GREEN << obj << COLOREND << endl;
-  //cin.get();
-}
-
-void train(size_t batchSize) {
-  Corpus corpus("data/phones.txt");
-
-  if (!corpus.isBatchSizeApprop(batchSize))
-    return;
-
-  const size_t epoch = 1;
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
-  for (itr=0; itr<nBatch; ++itr) {
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-    auto t = theta;
-
-    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
-    vector<double> dTheta(39);
-    size_t nPositive = 0;
-    size_t nNegative = 0;
-    foreach (i, samples) {
-      vector<double> dThetaPerSample(39);
-      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
-
-      bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
-
-      if (positive)
-	++nPositive;
-      else
-	++nNegative;
-    }
-
-    dTheta = dTheta / (double) samples.size();
-    updateTheta(theta, dTheta);
-
-    //double diff = norm(theta - t);
-    //printf(GREEN "%.6e" COLOREND ":\t", diff);
-    //printf(" # of positive = %lu, # of negative = %lu\n", nPositive, nNegative);
-    print(theta);
-    saveTheta();
-  }
 }
 
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores) {
@@ -366,7 +266,7 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
 
 	  string f1 = MFCC_DIR + phone1 + "/" + lists[i][m];
 	  string f2 = MFCC_DIR + phone2 + "/" + lists[j][n];
-	  score[m][n] = dtw(f1, f2);
+	  score[m][n] = dtwdiag39::dtw(f1, f2);
 	}
       }
 
@@ -376,59 +276,6 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
   }
 
 }
-
-void updateTheta(vector<double>& theta, vector<double>& delta) {
-  static double learning_rate = 0.00001;
-  double maxNorm = 1;
-
-  // Adjust Learning Rate || Adjust delta 
-  // TODO go Google some algorithms to adjust learning_rate, such as Line Search, and of course some packages
-  /*if (norm(delta) * learning_rate > maxNorm) {
-    //delta = delta / norm(delta) * maxNorm / learning_rate;
-    learning_rate = maxNorm / norm(delta);
-  }*/
-
-  debug(norm(delta));
-  debug(learning_rate);
-  foreach (i, theta)
-    theta[i] -= learning_rate*delta[i];
-
-  // Enforce every diagonal element >= 0
-
-  // theta = theta / vecsum(theta); <== This is kind of erroneous
-  // , 'cause this isn't the way updating theta ( according to Gradient Descent)
-  // , and therefore the objective function is not gauranteed to be monotonically Inc/Dec
-  //theta = vmax(0, theta);
-
-  Bhattacharyya::setDiag(theta);
-}
-
-double dtw(string q_fname, string d_fname, vector<double> *dTheta) {
-  static vector<float> hypo_score;
-  static vector<pair<int, int> > hypo_bound;
-  hypo_score.clear(); hypo_bound.clear();
-
-  DtwParm q_parm(q_fname);
-  DtwParm d_parm(d_fname);
-  FrameDtwRunner::nsnippet_ = 10;
-
-  //FrameDtwRunner *dtwRunner;
-  //dtwRunner = new FreeFrameDtwRunner(DtwUtil::euclinorm);
-  //dtwRunner = new SlopeConDtwRunner(DtwUtil::euclinorm);
-  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
-  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-  dtwRunner.DTW();
-
-  //vector<double> ddTheta = ;
-  if (dTheta != NULL)
-    *dTheta = calcDeltaTheta(&dtwRunner);
-
-  return dtwRunner.getCumulativeScore();
-}
-
-/*int exec(string cmd) {
-  return system(cmd.c_str());
-}*/
 
 Array<string> getPhoneList(string filename) {
 
@@ -462,18 +309,11 @@ double average(const mat& m, const double MIN) {
   return total / counter;
 }
 
-void saveTheta() {
-  Array<double> t(theta.size());
-  foreach (i, t)
-    t[i] = theta[i];
-  t.saveas(".theta.restore");
-}
-
 void signalHandler(int param) {
   cout << RED "[Interrupted]" COLOREND << " aborted by user. # of iteration = " << itr << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
-  saveTheta();
+  dtwdiag39::saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
 
   exit(-1);
@@ -484,4 +324,3 @@ void regSignalHandler () {
   if (signal (SIGINT, signalHandler) == SIG_ERR)
     cerr << "Cannot catch signal" << endl;
 }
-

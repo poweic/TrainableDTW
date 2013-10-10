@@ -5,6 +5,7 @@ RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 CC=gcc
 CXX=g++
 CFLAGS=
+NVCC=nvcc -arch=sm_21
 
 INCLUDE= -I include/ \
 	 -I /usr/local/boton/include/ \
@@ -17,6 +18,7 @@ INCLUDE= -I include/ \
 	 -I $(UGOC_ROOT)/libdtw/include \
 	 -I $(UGOC_ROOT)/libutility/include \
  	 -I /usr/local/cuda/samples/common/inc/ \
+	 -I /share/Local/ \
 	 -I /usr/local/cuda/include
 
 #-I $(RTK_UTIL_ROOT)/include
@@ -25,8 +27,8 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp
-EXECUTABLES=extract train test calc-acoustic-similarity 
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp blas.cpp
+EXECUTABLES=train extract test calc-acoustic-similarity 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
  
 .PHONY: debug all o3 example
@@ -41,6 +43,7 @@ debug: all
 
 vpath %.h include/
 vpath %.cpp src/
+vpath %.cu src/
 
 OBJ=$(addprefix obj/,$(SOURCES:.cpp=.o))
 
@@ -70,7 +73,7 @@ LIBRARY_PATH=-L/usr/local/boton/lib/ \
 
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-train: $(OBJ) train.cpp
+train: $(OBJ) train.cpp obj/trainable_dtw.o
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
@@ -79,16 +82,20 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-thrust_example: $(OBJ) thrust_example.cu device_matrix.h
-	nvcc -arch=sm_21 $(INCLUDE) -g -o $@ $@.cu $< $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
 dnn_example: $(OBJ) dnn_example.cpp dnn.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
+thrust_example: $(OBJ) thrust_example.cu obj/device_matrix.o 
+	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 
 ctags:
 	@ctags -R *
 
 obj/%.o: %.cpp
 	$(CXX) $(CPPFLAGS) -o $@ -c $<
+
+obj/%.o: %.cu
+	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ -c $<
 
 obj/%.d: %.cpp
 	@$(CXX) -MM $(CPPFLAGS) $< > $@.$$$$; \

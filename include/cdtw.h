@@ -26,22 +26,20 @@ public:
   inline static double eval(double x, double y, double z);
 };
 
+inline double sigmoid(double x);
+inline double d_sigmoid(double x);
+
 //typedef vector<float>& cvec;
 typedef const float* cvec;
 
-class IDistanceGradient {
+class Bhattacharyya {
   public:
-    virtual double operator() (cvec x, cvec y, size_t k) const = 0;
-};
-
-
-class Bhattacharyya : public IDistanceGradient {
-  public:
-    virtual double operator() (cvec x, cvec y, size_t k) const;
+    vector<double> operator() (cvec x, cvec y) const;
 
     static vector<double>& getDiag();
     static void setDiag(const vector<double>& d);
     static float fn(const float* a, const float* b, const int size);
+    static void setDiagFromFile(const string& theta_filename);
 
   private:
     static vector<double> _diag;

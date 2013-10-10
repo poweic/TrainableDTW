@@ -11,12 +11,13 @@
 #include <cmath>
 #include <csignal>
 #include <sys/stat.h>
-#include <helper_timer.h>
+#include <fstream>
 
 #include <color.h>
 using namespace std;
 
 #define foreach(i, arr) for (size_t i=0; i<arr.size(); ++i)
+#define range(i, size) for (size_t i=0; i<size; ++i)
 #define reverse_foreach(i, arr) for (int i=(int)arr.size()-1; i>=0; --i)
 #define FLOAT_MIN (std::numeric_limits<float>::lowest())
 
@@ -28,8 +29,6 @@ using namespace std;
 
 #define mylog(token) {cout << #token " = " << token << endl;}
 
-#define fillwith(arr, val) {std::fill(arr.begin(), arr.end(), val);}
-#define fillzero(arr) fillwith(arr, 0)
 #define checkNAN(x) assert((x) == (x))
 
 #define __DIVIDER__ "=========================================================="
@@ -46,26 +45,17 @@ bool isInt(string str);
 vector<string> split(const string &s, char delim);
 vector<string>& split(const string &s, char delim, vector<string>& elems);
 
-namespace util {
-  class Timer {
-    public:
-      Timer(): timer(nullptr) { sdkCreateTimer(&timer); }
-      ~Timer() { sdkDeleteTimer(&timer); }
-
-      void start()	{ timer->start(); }
-      void stop()	{ timer->stop();  }
-      void reset()	{ timer->reset(); }
-
-      float getTime() { return timer->getTime(); }
-
-    private:
-      StopWatchInterface* timer;
-  };
-};
-
 inline bool exists (const string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
+}
+
+// ====================================
+// ===== Vector Utility Functinos =====
+// ====================================
+template <typename T>
+void fillwith(vector<T>& v, T val) {
+  std::fill(v.begin(), v.end(), val);
 }
 
 template <typename T, typename S>
@@ -85,9 +75,10 @@ vector<T> vmix(S a, const vector<T>& v) {
 }
 
 template <typename T>
-T norm(vector<T> v) {
+T norm(const vector<T>& v) {
   T sum = 0;
-  foreach (i, v) sum += pow(v[i], (T) 2);
+  foreach (i, v)
+    sum += pow(v[i], (T) 2);
   return sqrt(sum);
 }
 
@@ -109,16 +100,37 @@ void normalize(vector<T>& v, int type = 2) {
 }
 
 template <typename T>
-void print(const vector<T>& v, size_t n_digits = 3) {
+void print(const vector<T>& v, size_t n_digits = 6) {
 
-  string format = "%." + to_string(n_digits) + "f ";
+  string format = "%." + int2str(n_digits) + "f ";
   printf("[");
   foreach (i, v)
     printf(format.c_str(), v[i]);
   printf("]\n");
 }
 
+template <typename T>
+void save(const vector<T>& v, string filename) {
+  ofstream fs(filename.c_str());
 
+  foreach (i, v)
+    fs << v[i] << endl;
+
+  fs.close();
+}
+
+template <typename T>
+vector<T> load(string filename) {
+  vector<T> v;
+  ifstream fs(filename.c_str());
+
+  T t;
+  while (fs >> t) 
+    v.push_back(t);
+
+  fs.close();
+  return v;
+}
 // ==============================================
 // ===== Split vectors in vector of vectors =====
 // ==============================================

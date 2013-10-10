@@ -86,35 +86,18 @@ void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& p
   DtwParm X;
   DtwParm Y;
 
-  double totalLength = 0;
-  double nIndexes = 0;
-
   for (auto i=phoneInstances.cbegin(); i != phoneInstances.cend(); ++i) {
 
     const vector<FeatureSeq>& fSeqs = i->second;
 
-    foreach (j, fSeqs)
-      totalLength += fSeqs[j].size();
-    nIndexes += fSeqs.size();
-
-    /*if (phones[i->first] != "CH_ts")
-      continue;
-
-    const vector<FeatureSeq>& fSeqs = i->second;
-
-    Profile profile;
-    profile.tic();
-
-    ProgressBar pBar("Running DTW...");
-
+    //ProgressBar pBar("Running DTW...");
     vector<DenseFeature> features(fSeqs.size());
     for (size_t i=0; i<fSeqs.size(); ++i)
       toDenseFeature(fSeqs[i], features[i]);
 
-    size_t nPairs = fSeqs.size() * fSeqs.size();
-    // FIXME for (size_t i=0; i<fSeqs.size(); ++i) {
     for (size_t i=0; i<fSeqs.size(); ++i) {
-      pBar.refresh(double (i+1) / fSeqs.size());
+      //pBar.refresh(double (i+1) / fSeqs.size());
+
       for (size_t j=0; j<fSeqs.size(); ++j) {
 
 	X.Feat() = features[i];
@@ -124,15 +107,7 @@ void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& p
       }
     }
 
-    double elapsed = profile.toc();
-    double avgTime = elapsed / (double) nPairs;
-    printf("average time calculating a DTW pair = %8e, %lu in total\n", avgTime, nPairs);
-    return;
-    */
   }
-
-  mylog(totalLength);
-  mylog(nIndexes);
 }
 
 mat fast(const Array<string>& files) {

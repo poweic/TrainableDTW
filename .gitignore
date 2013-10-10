@@ -11,3 +11,6 @@ ipc_example
 thrust_example
 tags
 .*
+.log
+log*
+theta*
