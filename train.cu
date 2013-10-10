@@ -7,9 +7,9 @@
 #include <utility.h>
 #include <profile.h>
 #include <blas.h>
-#include <dnn.h>
-
 #include <cdtw.h>
+
+#include <dnn.h>
 #include <trainable_dtw.h>
 #include <corpus.h>
 
@@ -18,6 +18,8 @@
 
 using namespace DtwUtil;
 using namespace std;
+
+void initModel(Model& model);
 
 Array<string> getPhoneList(string filename);
 void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC_DIR, const size_t N);
@@ -34,7 +36,7 @@ void regSignalHandler();
 string scoreDir;
 vector<double> theta;
 size_t itr;
-Model model({39, HIDDEN_WIDTH, HIDDEN_WIDTH, MIDDLE_WIDTH}, {MIDDLE_WIDTH, HIDDEN_WIDTH, HIDDEN_WIDTH, 1});
+Model model;
 
 int main (int argc, char* argv[]) {
   
@@ -81,7 +83,7 @@ int main (int argc, char* argv[]) {
   string matFile = cmdParser.find("-o");
   bool resume = cmdParser.find("--resume-training") == "true";
   bool reevaluate = cmdParser.find("--re-evaluate") == "true"; 
-  SMIN::eta = stod(cmdParser.find("--eta"));
+  SMIN::eta = str2double(cmdParser.find("--eta"));
   bool validationOnly = cmdParser.find("--validation-only") == "true";
 
   theta.resize(39);
@@ -95,6 +97,7 @@ int main (int argc, char* argv[]) {
   profile.tic();
 
   //model.load("data/dtwdnn.model/");
+  initModel(model);
 
   if (phase == "validate") {
     dtwdnn::validation();
@@ -123,6 +126,14 @@ int main (int argc, char* argv[]) {
 
   dtwdiag39::saveTheta();
   return 0;
+}
+
+void initModel(Model& model) {
+  vector<size_t> d1(4), d2(4);
+  d1[0] = 39; d1[1] = HIDDEN_WIDTH; d1[2] = HIDDEN_WIDTH; d1[3] = MIDDLE_WIDTH;
+  d2[0] = MIDDLE_WIDTH; d2[1] = HIDDEN_WIDTH; d2[2] = HIDDEN_WIDTH; d2[3] = 1;
+
+  model = Model(d1, d2);
 }
 
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores) {
@@ -281,7 +292,7 @@ Array<string> getPhoneList(string filename) {
 
   Array<string> list;
 
-  fstream file(filename);
+  fstream file(filename.c_str());
   string line;
   while( std::getline(file, line) ) {
     vector<string> sub = split(line, ' ');

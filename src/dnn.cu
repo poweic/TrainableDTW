@@ -9,6 +9,8 @@ vec loadvector(string filename) {
   return v;
 }
 
+DNN::DNN() {}
+
 DNN::DNN(const vector<size_t>& dims): _dims(dims) {
   _weights.resize(_dims.size() - 1);
 
@@ -19,6 +21,14 @@ DNN::DNN(const vector<size_t>& dims): _dims(dims) {
   }
 
   randInit();
+}
+
+DNN::DNN(const DNN& source): _dims(source._dims), _weights(source._weights) {
+}
+
+DNN& DNN::operator = (DNN rhs) {
+  swap(*this, rhs);
+  return *this;
 }
 
 size_t DNN::getNLayer() const {
@@ -49,10 +59,6 @@ vector<size_t>& DNN::getDims() { return _dims; }
 const vector<size_t>& DNN::getDims() const { return _dims; }
 
 void DNN::randInit() {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dis(0, 1);
-
   foreach (i, _weights)
     ext::rand(_weights[i]);
 }
@@ -95,12 +101,43 @@ vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
 
   return p;
 }
+
+void swap(DNN& lhs, DNN& rhs) {
+  using std::swap;
+  swap(lhs._dims   , rhs._dims   );
+  swap(lhs._weights, rhs._weights);
+}
+
+void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs) {
+  using std::swap;
+  swap(lhs.hox, rhs.hox);
+  swap(lhs.hoy, rhs.hoy);
+  swap(lhs.hoz, rhs.hoz);
+  swap(lhs.hod, rhs.hod);
+}
+
+void swap(GRADIENT& lhs, GRADIENT& rhs) {
+  using std::swap;
+  swap(lhs.grad1, rhs.grad1);
+  swap(lhs.grad2, rhs.grad2);
+  swap(lhs.grad3, rhs.grad3);
+  swap(lhs.grad4, rhs.grad4);
+}
 // ===============================
 // ===== Class DTW-DNN Model =====
 // ===============================
+Model::Model() {}
+
 Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
   _w = ext::rand<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
+}
+
+Model::Model(const Model& source): _pp(source._pp), _w(source._w), _dtw(source._dtw), gradient(source.gradient), hidden_output(source.hidden_output) {}
+
+Model& Model::operator = (Model rhs) {
+  swap(*this, rhs);
+  return *this;
 }
 
 void Model::initHiddenOutputAndGradient() {
@@ -133,7 +170,7 @@ float Model::evaluate(const vec& x, const vec& y) {
 
   _dtw.feedForward(Om, &Od);
 
-  auto d = Od[Od.size() - 1][0];
+  float d = Od[Od.size() - 1][0];
   return d;
 }
 
@@ -154,13 +191,13 @@ void Model::calcGradient(const vec& x, const vec& y) {
   GRADIENT_ALIASING(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
   // ==============================================
   vec& final_output = Od.back();
-  auto p = _dtw.backPropagate(final_output, &Od, &dtw_gradient);
+  vec p = _dtw.backPropagate(final_output, &Od, &dtw_gradient);
 
   // ==============================================
   middle_gradient = Om & p;
 
-  auto px = p & Oy.back() & _w;
-  auto py = p & Ox.back() & _w;
+  vec px = p & Oy.back() & _w;
+  vec py = p & Ox.back() & _w;
 
   px = (px - ext::sum(px & Ox.back()) ) & Ox.back();
   py = (py - ext::sum(py & Oy.back()) ) & Oy.back();
@@ -210,13 +247,13 @@ void Model::load(string folder) {
   
   vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i] = mat(folder + "pp.w." + to_string(i));
+    ppw[i] = mat(folder + "pp.w." + int2str(i));
 
   ext::load<float>(this->_w, folder + "m.w");
 
   vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
-    dtww[i] = mat(folder + "dtw.w." + to_string(i));
+    dtww[i] = mat(folder + "dtw.w." + int2str(i));
 }
 
 void Model::save(string folder) const {
@@ -225,13 +262,13 @@ void Model::save(string folder) const {
   
   const vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i].saveas(folder + "pp.w." + to_string(i));
+    ppw[i].saveas(folder + "pp.w." + int2str(i));
 
   ext::save(this->_w, folder + "m.w");
 
   const vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
-    dtww[i].saveas(folder + "dtw.w." + to_string(i));
+    dtww[i].saveas(folder + "dtw.w." + int2str(i));
 }
 
 void Model::print() const {
@@ -239,6 +276,16 @@ void Model::print() const {
   ::print(_w);
   _dtw.print();
 }
+
+void swap(Model& lhs, Model& rhs) {
+  using std::swap;
+  swap(lhs._pp , rhs._pp );
+  swap(lhs._w  , rhs._w  );
+  swap(lhs._dtw, rhs._dtw);
+  swap(lhs.gradient, rhs.gradient);
+  swap(lhs.hidden_output, rhs.hidden_output);
+}
+
 
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
   GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);

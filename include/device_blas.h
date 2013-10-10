@@ -128,7 +128,7 @@ namespace ext {
   void load(thrust::device_vector<T>& v, string filename) {
     vector<T> hv;
     ext::load<T>(hv, filename);
-    thrust::copy(hv.begin(), hv.end(), v.begin());
+    v = thrust::device_vector<T>(hv.begin(), hv.end());
   }
   // =================================
   // ===== Summation over Vector =====
@@ -143,7 +143,7 @@ namespace ext {
   // ================
   template <typename T>
   void rand(device_matrix<T>& m) {
-    Matrix2D<T> h_m;
+    Matrix2D<T> h_m(m.getRows(), m.getCols());
     rand(h_m);
     m = device_matrix<T>(h_m);
   }

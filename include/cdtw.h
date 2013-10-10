@@ -13,14 +13,6 @@ using namespace DtwUtil;
 
 #define SOFT_POWER 4
 
-/*inline double softmax(double x, double y, double z, double p = SOFT_POWER) {
-  return pow( (pow(x, p) + pow(y, p) + pow(z, p)) / 3, 1/ p);
-}
-inline double softmin(double x, double y, double z, double p = SOFT_POWER) {
-  // If more than one (>= 1) of the inputs are 0, the output would also be 0 (because 1/inf = 0.)
-  return softmax(x, y, z, -p);
-}*/
-
 class SMIN {
 public:
   static double eta;

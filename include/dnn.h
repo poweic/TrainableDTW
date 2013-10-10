@@ -22,7 +22,10 @@ vec loadvector(string filename);
 
 class DNN {
 public:
+  DNN();
   DNN(const vector<size_t>& dims);
+  DNN(const DNN& source);
+  DNN& operator = (DNN rhs);
 
   void randInit();
   void feedForward(const vec& x, vector<vec>* hidden_output);
@@ -38,10 +41,14 @@ public:
   vector<size_t>& getDims();
   const vector<size_t>& getDims() const;
 
+  friend void swap(DNN& lhs, DNN& rhs);
+
 private:
   vector<size_t> _dims;
   vector<mat> _weights;
 };
+
+void swap(DNN& lhs, DNN& rhs);
 
 #define HIDDEN_OUTPUT_ALIASING(O, x, y, z, w) \
 vector<vec>& x	= O.hox; \
@@ -63,6 +70,7 @@ class HIDDEN_OUTPUT {
     vector<vec> hod;
 };
 
+void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs);
 
 class GRADIENT {
   public:
@@ -72,10 +80,15 @@ class GRADIENT {
     vector<mat> grad4;
 };
 
+void swap(GRADIENT& lhs, GRADIENT& rhs);
+
 class Model {
 public:
 
+  Model();
   Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim);
+  Model(const Model& src);
+  Model& operator = (Model rhs);
 
   void load(string filename);
   void initHiddenOutputAndGradient();
@@ -92,6 +105,8 @@ public:
   void getEmptyGradient(GRADIENT& g);
   void save(string folder) const;
   void print() const;
+
+  friend void swap(Model& lhs, Model& rhs);
  
 private:
   HIDDEN_OUTPUT hidden_output;
@@ -101,6 +116,8 @@ private:
   DNN _pp;
   DNN _dtw;
 };
+
+void swap(Model& lhs, Model& rhs);
 
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
 GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2);

@@ -34,7 +34,7 @@ void Bhattacharyya::setDiagFromFile(const string& theta_filename) {
     return;
 
   vector<double> diag;
-  ext::load<double>(diag, theta_filename);
+  //ext::load<double>(diag, theta_filename);
   Bhattacharyya::setDiag(diag);
 }
 

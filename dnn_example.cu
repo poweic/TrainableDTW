@@ -8,27 +8,27 @@
 
 using namespace std;
 
-template <typename T>
-vector<T>& operator += (vector<T>& x, vector<T>& y) {
-  x = x + y;
-  return x;
-}
+// typedef device_matrix<float> mat;
+// typedef thrust::device_vector<float> vec;
 
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
 void print(GRADIENT& g);
 GRADIENT& calcGradient(Model& model, const vec& x, const vec& y);
 
+Model model;
+
 int main (int argc, char* argv[]) {
-  vec x = loadvector("data/test.vx");
-  vec y = loadvector("data/test.vy");
+  vec x, y;
+  ext::load(x, "data/test.vx");
+  ext::load(y, "data/test.vy");
 
   int M = 74;
-  int WIDTH = 40;
-  vector<size_t> d1(4), d2(4);
-  d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = M;
-  d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = 1;
+  int WIDTH = 5;
+  vector<size_t> d1(5), d2(5);
+  d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = WIDTH; d1[4] = M;
+  d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = WIDTH; d2[4] = 1;
 
-  Model model(d1, d2);
+  model = Model(d1, d2);
 
   const size_t MAX_ITR = 128;
   vec d(MAX_ITR);
@@ -41,6 +41,8 @@ int main (int argc, char* argv[]) {
     model.calcGradient(x, y);
     model.updateParameters(model.getGradient());
   }
+
+  model.save("exp/dtwdnn.gpu/");
   
   printf("%f ms in total, avg %f ms per upate\n", timer.getTime(), timer.getTime() / MAX_ITR);
 
