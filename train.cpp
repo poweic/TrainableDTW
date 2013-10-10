@@ -10,18 +10,15 @@
 #include <dnn.h>
 
 #include <cdtw.h>
+#include <trainable_dtw.h>
 #include <corpus.h>
 
-// #define MIDDLE_WIDTH 74
-#define MIDDLE_WIDTH 4
-#define HIDDEN_WIDTH 4
-#define PARAMETER_TYPE vector<double>
+#define MIDDLE_WIDTH 74
+#define HIDDEN_WIDTH 40
 
 using namespace DtwUtil;
 using namespace std;
 
-double dtw(string f1, string f2, vector<double> *dTheta = NULL);
-double dtw_with_dnn(string f1, string f2, GRADIENT* dTheta);
 Array<string> getPhoneList(string filename);
 void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC_DIR, const size_t N);
 mat comparePhoneDistances(const Array<string>& phones);
@@ -29,21 +26,10 @@ double average(const mat& m, const double MIN = -3.40e+34);
 // int exec(string cmd);
 double objective(const mat& scores);
 mat statistics (const Array<string>& phones);
-void updateTheta(vector<double>& theta, vector<double>& delta);
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores);
 
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
-GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model);
 void signalHandler(int param);
-void saveTheta();
 void regSignalHandler();
-
-void validation_with_dnn();
-void validation();
-void calcObjective(const vector<tsample>& samples);
-void calcObjective_with_dnn(const vector<tsample>& samples);
-
-void train(size_t batchSize);
 
 string scoreDir;
 vector<double> theta;
@@ -108,12 +94,16 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
+  //model.load("data/dtwdnn.model/");
+
   if (phase == "validate") {
-    validation_with_dnn();
-    //validation();
+    dtwdnn::validation();
+    //dtwdiag39::validation();
   }
-  else if (phase == "train")
-    train(batchSize);
+  else if (phase == "train") {
+    //dtwdiag39::train(batchSize);
+    dtwdnn::train(batchSize);
+  }
   else if (phase == "evaluate") {
 
     if (reevaluate)
@@ -131,189 +121,8 @@ int main (int argc, char* argv[]) {
 
   profile.toc();
 
-  saveTheta();
+  dtwdiag39::saveTheta();
   return 0;
-}
-
-void validation_with_dnn() {
-  Corpus corpus("data/phones.txt");
-  const size_t MINIATURE_SIZE = 1000;
-  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
-
-  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-  theta.resize(39);
-  fillwith(theta, 1);
-
-  for (itr=0; itr<10000; ++itr) {
-
-    GRADIENT dTheta, ddTheta;
-    model.getEmptyGradient(dTheta);
-    model.getEmptyGradient(ddTheta);
-
-    foreach (i, samples) {
-      auto cscore = dtw_with_dnn(samples[i].first.first, samples[i].first.second, &ddTheta);
-      bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
-    }
-
-    dTheta /= samples.size();
-    model.updateParameters(dTheta);
-
-    calcObjective_with_dnn(samples);
-    model.save("data/dtwdnn.model/");
-  }
-}
-
-void validation() {
-  Corpus corpus("data/phones.txt");
-  const size_t MINIATURE_SIZE = 1000;
-  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
-
-  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-  theta.resize(39);
-  fillwith(theta, 1);
-
-  for (itr=0; itr<10000; ++itr) {
-
-    PARAMETER_TYPE dTheta(39);
-    PARAMETER_TYPE ddTheta(39);
-    foreach (i, samples) {
-      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
-      bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
-    }
-
-    dTheta = dTheta / (double) samples.size();
-    updateTheta(theta, dTheta);
-
-    saveTheta();
-    calcObjective(samples);
-  }
-}
-
-#define DTW_PARAM_ALIASING \
-size_t dim = dtw->getFeatureDimension();\
-double cScore = dtw->getCumulativeScore();\
-const auto& Q = dtw->getQ();\
-const auto& D = dtw->getD();\
-auto& alpha = const_cast<TwoDimArray<float>&>(dtw->getAlpha());\
-auto& beta  = const_cast<TwoDimArray<float>&>(dtw->getBeta());
-
-GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
-  DTW_PARAM_ALIASING;
-  // TODO Need to convert GRADIENT from std::tuple to Self-Defined Class
-  // , in order to have a default constructor
-  if (cScore == 0)
-    return GRADIENT();
-
-  GRADIENT g;
-  model.getEmptyGradient(g);
-
-  range(i, dtw->qLength()) {
-    range(j, dtw->dLength()) {
-	const float* qi = Q[i], *dj = D[j];
-	double coeff = alpha(i, j) + beta(i, j) - cScore;
-	coeff = exp(SMIN::eta * coeff);
-
-	model.calcGradient(qi, dj);
-	auto gg = coeff * (model.getGradient());
-	g += gg;
-    }
-  }
-
-  return g;
-}
-
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
-  DTW_PARAM_ALIASING;
-  if (cScore == 0)
-    return vector<double>(dim);
-
-  vector<double> dTheta(dim);
-  fillzero(dTheta);
-
-  Bhattacharyya gradient;
-
-  range(i, dtw->qLength()) {
-    range(j, dtw->dLength()) {
-	const float* qi = Q[i], *dj = D[j];
-	double coeff = alpha(i, j) + beta(i, j) - cScore;
-	coeff = exp(SMIN::eta * coeff);
-
-	dTheta += coeff * gradient(qi, dj);
-    }
-  }
-
-  return dTheta;
-}
-
-void calcObjective_with_dnn(const vector<tsample>& samples) {
-
-  double obj = 0;
-  foreach (i, samples) {
-    auto cscore = dtw_with_dnn(samples[i].first.first, samples[i].first.second, NULL);
-    bool positive = samples[i].second;
-    obj += (positive) ? cscore : (-cscore);
-  }
-
-  printf("%.5f\n", obj);
-}
-
-void calcObjective(const vector<tsample>& samples) {
-
-  double obj = 0;
-  foreach (i, samples) {
-    auto cscore = dtw(samples[i].first.first, samples[i].first.second);
-    bool positive = samples[i].second;
-    obj += (positive) ? cscore : (-cscore);
-  }
-
-  printf("%.5f\n", obj);
-}
-
-void train(size_t batchSize) {
-  Corpus corpus("data/phones.txt");
-
-  if (!corpus.isBatchSizeApprop(batchSize))
-    return;
-
-  const size_t epoch = 1;
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
-  for (itr=0; itr<nBatch; ++itr) {
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-    auto t = theta;
-
-    // TODO use 38-dim !! 'Cause of the constraint: u1 + u2 + .. + u39 = 1
-    vector<double> dTheta(39);
-    size_t nPositive = 0;
-    size_t nNegative = 0;
-    foreach (i, samples) {
-      vector<double> dThetaPerSample(39);
-      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
-
-      bool positive = samples[i].second;
-      dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
-
-      if (positive)
-	++nPositive;
-      else
-	++nNegative;
-    }
-
-    dTheta = dTheta / (double) samples.size();
-    updateTheta(theta, dTheta);
-
-    //double diff = norm(theta - t);
-    //printf(GREEN "%.6e" COLOREND ":\t", diff);
-    //printf(" # of positive = %lu, # of negative = %lu\n", nPositive, nNegative);
-    print(theta);
-    saveTheta();
-  }
 }
 
 void deduceCompetitivePhones(const Array<string>& phones, const mat& scores) {
@@ -457,7 +266,7 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
 
 	  string f1 = MFCC_DIR + phone1 + "/" + lists[i][m];
 	  string f2 = MFCC_DIR + phone2 + "/" + lists[j][n];
-	  score[m][n] = dtw(f1, f2);
+	  score[m][n] = dtwdiag39::dtw(f1, f2);
 	}
       }
 
@@ -466,73 +275,6 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
     }
   }
 
-}
-
-void updateTheta(vector<double>& theta, vector<double>& delta) {
-  static double learning_rate = 0.00001;
-  double maxNorm = 1;
-
-  // Adjust Learning Rate || Adjust delta 
-  // TODO go Google some algorithms to adjust learning_rate, such as Line Search, and of course some packages
-  /*if (norm(delta) * learning_rate > maxNorm) {
-    //delta = delta / norm(delta) * maxNorm / learning_rate;
-    learning_rate = maxNorm / norm(delta);
-  }*/
-
-  debug(norm(delta));
-  debug(learning_rate);
-  foreach (i, theta)
-    theta[i] -= learning_rate*delta[i];
-
-  // Enforce every diagonal element >= 0
-  theta = vmax(0, theta);
-
-  Bhattacharyya::setDiag(theta);
-}
-
-float dnn_fn(const float* x, const float* y, const int size) {
-  return model.evaluate(x, y);
-}
-
-double dtw_with_dnn(string f1, string f2, GRADIENT* dTheta) {
-  static vector<float> hypo_score;
-  static vector<pair<int, int> > hypo_bound;
-  hypo_score.clear(); hypo_bound.clear();
-
-  DtwParm q_parm(f1);
-  DtwParm d_parm(f2);
-  FrameDtwRunner::nsnippet_ = 10;
-
-  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(dnn_fn);
-  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-  dtwRunner.DTW();
-
-  if (dTheta != NULL)
-    *dTheta = calcDeltaTheta(&dtwRunner, ::model);
-
-  return dtwRunner.getCumulativeScore();
-}
-
-double dtw(string f1, string f2, vector<double> *dTheta) {
-  static vector<float> hypo_score;
-  static vector<pair<int, int> > hypo_bound;
-  hypo_score.clear(); hypo_bound.clear();
-
-  DtwParm q_parm(f1);
-  DtwParm d_parm(f2);
-  FrameDtwRunner::nsnippet_ = 10;
-
-  //FrameDtwRunner *dtwRunner;
-  //dtwRunner = new FreeFrameDtwRunner(DtwUtil::euclinorm);
-  //dtwRunner = new SlopeConDtwRunner(DtwUtil::euclinorm);
-  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
-  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-  dtwRunner.DTW();
-
-  if (dTheta != NULL)
-    *dTheta = calcDeltaTheta(&dtwRunner);
-
-  return dtwRunner.getCumulativeScore();
 }
 
 Array<string> getPhoneList(string filename) {
@@ -567,18 +309,11 @@ double average(const mat& m, const double MIN) {
   return total / counter;
 }
 
-void saveTheta() {
-  Array<double> t(theta.size());
-  foreach (i, t)
-    t[i] = theta[i];
-  t.saveas(".theta.restore");
-}
-
 void signalHandler(int param) {
   cout << RED "[Interrupted]" COLOREND << " aborted by user. # of iteration = " << itr << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
-  saveTheta();
+  dtwdiag39::saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
 
   exit(-1);
@@ -589,6 +324,3 @@ void regSignalHandler () {
   if (signal (SIGINT, signalHandler) == SIG_ERR)
     cerr << "Cannot catch signal" << endl;
 }
-
-
-

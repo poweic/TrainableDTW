@@ -39,6 +39,7 @@ class Bhattacharyya {
     static vector<double>& getDiag();
     static void setDiag(const vector<double>& d);
     static float fn(const float* a, const float* b, const int size);
+    static void setDiagFromFile(const string& theta_filename);
 
   private:
     static vector<double> _diag;

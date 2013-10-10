@@ -14,11 +14,28 @@ using namespace std;
 
 typedef Matrix2D<double> mat;
 void normalize(mat& m, int type = 1);
-
 double cdtw(DtwParm& q_parm, DtwParm& d_parm);
-double scdtw(DtwParm& q_parm, DtwParm& d_parm);
-double ffdtw(DtwParm& q_parm, DtwParm& d_parm);
-double fixdtw(DtwParm& q_parm, DtwParm& d_parm);
+void chooseLargestGranularity(const string& path, Array<string>& lists);
+enum DTW_TYPE { FIXDTW, FFDTW, SCDTW, CDTW };
+DTW_TYPE getDtwType(const string& typeStr);
+
+template <typename T>
+double other_dtw(DtwParm& q_parm, DtwParm& d_parm) {
+  vector<float> hypo_score;
+  vector<pair<int, int> > hypo_bound;
+
+  FrameDtwRunner::nsnippet_ = 10;
+  T dtwRunner = T(DtwUtil::euclinorm);
+  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+  dtwRunner.DTW();
+
+  float max = numeric_limits<float>::lowest();
+  foreach (i, hypo_bound) {
+    if (hypo_score[i] > max)
+      max = hypo_score[i];
+  }
+  return (double) max;
+}
 
 template <typename T>
 std::pair<T, T> getMinMax(const Matrix2D<T>& m) {
@@ -72,46 +89,12 @@ int main (int argc, char* argv[]) {
   string theta_filename = cmdParser.find("--theta");
   SMIN::eta = stod(cmdParser.find("--eta"));
 
-  if (!theta_filename.empty()) {
-    vector<double> diag(39);
-    Array<double> diag2(theta_filename);
-    foreach (i, diag)
-      diag[i] = diag2[i];
-    Bhattacharyya::setDiag(diag);
-  }
+  Bhattacharyya::setDiagFromFile(theta_filename);
 
-  enum DTW_TYPE {
-    FIXDTW,
-    FFDTW,
-    SCDTW,
-    CDTW
-  };
+  DTW_TYPE type = getDtwType(cmdParser.find("--dtw-type"));
 
-  string typeStr = cmdParser.find("--dtw-type");
-  DTW_TYPE type;
-  if (typeStr == "fixdtw")
-    type = FIXDTW;
-  else if (typeStr == "scdtw")
-    type = SCDTW;
-  else if (typeStr == "cdtw")
-    type = CDTW;
-  else
-    type = FFDTW;
-
-  //vector<string> lists = bash::ls(path);
   Array<string> lists(list_filename);
-  foreach (i, lists) {
-    
-    // Choose Highest number. (i.e. largest granularity)
-    // Granularity: word > character > syllable > phone
-    for (int j=1; j<50; ++j) {
-      string filename = path + lists[i] + "_" + to_string(j) + ".mfc";
-      if (exists(filename)) {
-	lists[i] = filename;
-	break;
-      }
-    }
-  }
+  chooseLargestGranularity(path, lists);
 
   int nSegment = lists.size();
 
@@ -122,6 +105,7 @@ int main (int argc, char* argv[]) {
   mat scores(nSegment, nSegment);
 
   foreach (i, lists) {
+
     foreach (j, lists) {
       if (j > i) break;
 
@@ -131,14 +115,14 @@ int main (int argc, char* argv[]) {
 	  score = cdtw(parms[i], parms[j]);
 	  break;
 	case FIXDTW:
-	  score = fixdtw(parms[i], parms[j]);
+	  score = other_dtw<FixFrameDtwRunner>(parms[i], parms[j]);
 	  break;
 	case SCDTW:
-	  score = scdtw(parms[i], parms[j]);
+	  score = other_dtw<SlopeConDtwRunner>(parms[i], parms[j]);
 	  break;
 	case FFDTW:
 	default:
-	  score = ffdtw(parms[i], parms[j]);
+	  score = other_dtw<FreeFrameDtwRunner>(parms[i], parms[j]);
 	  break;
       }
 
@@ -148,11 +132,36 @@ int main (int argc, char* argv[]) {
 
   normalize(scores, 1);
   scores.saveas(mat_filename);
-  // =====================================================
 
+  cout << endl;
   profile.toc();
 
   return 0;
+}
+
+DTW_TYPE getDtwType(const string& typeStr) {
+  if (typeStr == "fixdtw")
+    return FIXDTW;
+  else if (typeStr == "scdtw")
+    return SCDTW;
+  else if (typeStr == "cdtw")
+    return CDTW;
+  else
+    return FFDTW;
+}
+
+void chooseLargestGranularity(const string& path, Array<string>& lists) {
+  // Choose Highest number. (i.e. largest granularity)
+  // Granularity: word > character > syllable > phone
+  foreach (i, lists) {
+    for (int j=1; j<50; ++j) {
+      string filename = path + lists[i] + "_" + to_string(j) + ".mfc";
+      if (exists(filename)) {
+	lists[i] = filename;
+	break;
+      }
+    }
+  }
 }
 
 void normalize(mat& m, int type) {
@@ -168,12 +177,13 @@ void normalize(mat& m, int type) {
       m /= (max - min);
       m += 1;
       break;
+
     // [min, max] ==> [min - max, 0] ==> [0, 1]
     //          shift                exp
     case 2:
       m -= max;
-      for (size_t i=0; i<m.getRows(); ++i)
-	for (size_t j=0; j<m.getCols(); ++j)
+      range(i, m.getRows())
+	range(j, m.getCols())
 	  m[i][j] = exp(m[i][j]);
       
       break;
@@ -191,14 +201,13 @@ double cdtw(DtwParm& q_parm, DtwParm& d_parm) {
   dtwRunner.DTW();
 
   double cScoreInLog = dtwRunner.getCumulativeScore();
-  /*mylog(cScoreInLog);
-  mylog(SMIN::eta);
-  mylog(exp(SMIN::eta * cScoreInLog));
-  return exp(SMIN::eta * cScoreInLog);*/
   return -cScoreInLog;
 }
 
-double ffdtw(DtwParm& q_parm, DtwParm& d_parm) {
+// double scdtw(DtwParm& q_parm, DtwParm& d_parm);
+// double ffdtw(DtwParm& q_parm, DtwParm& d_parm);
+// double fixdtw(DtwParm& q_parm, DtwParm& d_parm);
+/*double ffdtw(DtwParm& q_parm, DtwParm& d_parm) {
   vector<float> hypo_score;
   vector<pair<int, int> > hypo_bound;
 
@@ -248,3 +257,4 @@ double scdtw(DtwParm& q_parm, DtwParm& d_parm) {
   }
   return (double) max;
 }
+*/

@@ -29,13 +29,24 @@ size_t DNN::getDepth() const {
   return _dims.size() - 2;
 }
 
-vector<mat>& DNN::getWeights() {
-  return _weights;
+void DNN::print() const {
+  foreach (i, _weights)
+    _weights[i].print(5);
 }
 
-vector<size_t>& DNN::getDims() {
-  return _dims;
+void DNN::getEmptyGradient(vector<mat>& g) const {
+  g.resize(_weights.size());
+  foreach (i, _weights) {
+    int m = _weights[i].getRows();
+    int n = _weights[i].getCols();
+    g[i].resize(m, n);
+  }
 }
+
+vector<mat>& DNN::getWeights() { return _weights; }
+const vector<mat>& DNN::getWeights() const { return _weights; }
+vector<size_t>& DNN::getDims() { return _dims; }
+const vector<size_t>& DNN::getDims() const { return _dims; }
 
 void DNN::randInit() {
   std::random_device rd;
@@ -199,19 +210,39 @@ void Model::getEmptyGradient(GRADIENT& g) {
   _dtw.getEmptyGradient(g4);
 }
 
-void Model::save(string folder) {
-
+void Model::load(string folder) {
   folder += "/";
   
   vector<mat>& ppw = _pp.getWeights();
+  foreach (i, ppw)
+    ppw[i] = mat(folder + "pp.w." + to_string(i));
+
+  this->_w = ::load<float>(folder + "m.w");
+
+  vector<mat>& dtww = _dtw.getWeights();
+  foreach (i, dtww)
+    dtww[i] = mat(folder + "dtw.w." + to_string(i));
+}
+
+void Model::save(string folder) const {
+
+  folder += "/";
+  
+  const vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
     ppw[i].saveas(folder + "pp.w." + to_string(i));
 
   ::save(this->_w, folder + "m.w");
 
-  vector<mat>& dtww = _dtw.getWeights();
+  const vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i].saveas(folder + "dtw.w." + to_string(i));
+}
+
+void Model::print() const {
+  _pp.print();
+  ::print(_w);
+  _dtw.print();
 }
 
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {

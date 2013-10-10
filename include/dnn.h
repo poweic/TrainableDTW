@@ -2,6 +2,7 @@
 #define __DNN_H_
 
 #include <blas.h>
+#include <math_ext.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -29,17 +30,13 @@ public:
 
   size_t getNLayer() const;
   size_t getDepth() const;
-  void getEmptyGradient(vector<mat>& g) {
-    g.resize(_weights.size());
-    foreach (i, _weights) {
-      int m = _weights[i].getRows();
-      int n = _weights[i].getCols();
-      g[i].resize(m, n);
-    }
-  }
+  void getEmptyGradient(vector<mat>& g) const;
+  void print() const;
 
   vector<mat>& getWeights();
+  const vector<mat>& getWeights() const;
   vector<size_t>& getDims();
+  const vector<size_t>& getDims() const;
 
 private:
   vector<size_t> _dims;
@@ -75,7 +72,8 @@ public:
   HIDDEN_OUTPUT& getHiddenOutput();
   GRADIENT& getGradient();
   void getEmptyGradient(GRADIENT& g);
-  void save(string folder);
+  void save(string folder) const;
+  void print() const;
     
 private:
   HIDDEN_OUTPUT hidden_output;

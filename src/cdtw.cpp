@@ -29,6 +29,14 @@ vector<double>& Bhattacharyya::getDiag() {
   return Bhattacharyya::_diag;
 }
 
+void Bhattacharyya::setDiagFromFile(const string& theta_filename) {
+  if (theta_filename.empty())
+    return;
+
+  vector<double> diag = ::load<double>(theta_filename);
+  Bhattacharyya::setDiag(diag);
+}
+
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 

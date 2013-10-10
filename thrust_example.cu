@@ -8,80 +8,163 @@
 
 #include <perf.h>
 #include <matrix.h>
+#include <utility.h>
+
+#include <blas.h>
+#include <device_blas.h>
 #include <device_matrix.h>
 /* Matrix size */
 #define N  (275)
 #define DIVIDER(x) cout << GREEN"========== "x" =========="COLOREND << endl;
 
 typedef Matrix2D<float> mat;
+typedef vector<float> vec;
+typedef thrust::device_vector<float> dvec;
+
+template <typename T>
+void print(const thrust::host_vector<T>& v) {
+  printf("[");
+  foreach (i, v)
+    printf("%.6f ", v[i]);
+  printf("]\n");
+}
+
+template <typename T>
+void print(const thrust::device_vector<T>& v) {
+  thrust::host_vector<T> hv(v);
+  print(hv);
+}
 
 using namespace std;
 int cublas_example();
 
+bool device_blas_testing_examples();
+
 int main (int argc, char* argv[]) {
 
-  // ===== CPU Matrix =====
-  mat answer("data/test.AB.mat");
-  mat hA("data/test.A.mat");
-  mat hB("data/test.B.mat");
+  blas_testing_examples();
+  device_blas_testing_examples();
 
-  /*cout << "A = " << endl;
-  hA.print(3);
-  cout << "B = " << endl;
-  hB.print(3);*/
+}
 
-  DIVIDER("Ground Truth");
-  //answer.print(3);
+template <typename T>
+T matsum(const Matrix2D<T>& m) {
+  T sum = 0;
+  for (size_t i=0; i<m.getRows(); ++i)
+    for (size_t j=0; j<m.getCols(); ++j)
+      sum += m[i][j];
 
-  DIVIDER("CPU Result");
-  mat CPU_result = hA*hB;
-  // CPU_result.print(3);
+  return sum;
+}
 
-  // ===== GPU Matrix =====
-  device_matrix<float> dA(hA);
-  device_matrix<float> dB(hB);
+#define CHECK_IN_EPS(note) \
+  printf("\terr = %e "note, err); \
+  if (err > EPSILON) printf(RED"\t [WARNING] "COLOREND"err (%e) > EPS(%e)\n", err, EPSILON); \
+  else printf(GREEN"\t [Passed] "COLOREND"\n");
 
-  device_matrix<float> dC = dA*dB;
-  mat GPU_result(dC);
+bool device_blas_testing_examples() {
+  string folder = "./testing/matrix_lib/";
+  const double EPSILON = 1e-6;
 
-  DIVIDER("GPU Result");
-  //GPU_result.print(3);
+  // Settings and Loading
+  mat hA(folder +  "A.mat");
+  mat hB(folder +  "B.mat");
+  mat hAA(folder + "AA.mat");
+  mat hAB(folder + "AB.mat");
 
-  double err = 0;
-  for (size_t i=0; i<GPU_result.getRows(); ++i)
-    for (size_t j=0; j<GPU_result.getCols(); ++j)
-      err += GPU_result[i][j] - CPU_result[i][j];
+  dmat dA(hA), dB(hB), dAA(hAA), dAB(hAB);
 
-  cout << "err = " << err << endl;
+  float err;
+  // Test Case #1: A * B == AB
+  printf("\nTest Case #1: A * B == AB\n");
 
-  float l1 = L1_NORM(dC, CPU_result);
-  cout << "l1  = " << l1 << endl;
+  err = snrm2(hA * hB - hAB) / hAB.size();
+  CHECK_IN_EPS("(on host)");
+  err = snrm2(dA * dB - dAB) / dAB.size();
+  CHECK_IN_EPS("(on device)");
 
-  sgemm(dA, dB, dC, (float) 1.0);
+  // Test Case #2: A * 3.14 (device) == A * 3.14 (host)
+  printf("\nTest Case #2: A * 3.14 (device) == A * 3.14 (host)\n");
+  err = snrm2((dA * 3.14) - (dmat) (hA * 3.14));
+  CHECK_IN_EPS();
 
-  cout << "Good!!" << endl;
+  // Test Case #3: A + AA (device) == A + AA (host)
+  printf("\nTest Case #3: A + AA (device) == A + AA (host)\n");
+  err = snrm2((dA + dAA) - (dmat) (hA + hAA));
+  CHECK_IN_EPS();
 
-  /*
-  thrust::host_vector<double> v(123);
+  // Test Case #4: A - AA (device) == A - AA (host)
+  printf("\nTest Case #4: A - AA (device) == A - AA (host)\n");
+  err = snrm2((dA - dAA) - (dmat) (hA - hAA));
+  CHECK_IN_EPS();
 
-  for (size_t i=0; i<v.size(); ++i)
-    v[i] = 10;
+  // Test Case #5: A / 3.14 (device) == A / 3.14 (host)
+  printf("\nTest Case #5: A / 3.14 (device) == A / 3.14 (host)\n");
+  err = snrm2((dA / 3.14) - (dmat) (hA / 3.14));
+  CHECK_IN_EPS();
 
-  thrust::device_vector<double> hv(v);
-  int sum = thrust::reduce(hv.begin(), hv.end(), (int) 0, thrust::plus<int>());
 
-  cout << " sum = " << sum << endl;
+  hA *= 5.123; hB /= 3.21; hAB *= 5.123 / 3.21; hAA *= 1.106;
+  dA *= 5.123; dB /= 3.21; dAB *= 5.123 / 3.21; dAA *= 1.106;
 
-  int result = cublas_example();
+  // Test Case #1: A * B == AB
+  printf("\nTest Case #1: A * B == AB\n");
 
-  cout << "result = " << result << endl;
-  cout << GREEN "Good" COLOREND << endl;
-  */
+  err = snrm2(hA * hB - hAB) / hAB.size();
+  CHECK_IN_EPS("(on host)");
+  err = snrm2(dA * dB - dAB) / dAB.size();
+  CHECK_IN_EPS("(on device)");
 
-  //CUBLAS_HANDLE& h = mat.getCublasHandle();
+  // Test Case #2: A * 3.14 (device) == A * 3.14 (host)
+  printf("\nTest Case #2: A * 3.14 (device) == A * 3.14 (host)\n");
+  err = snrm2((dA * 3.14) - (dmat) (hA * 3.14));
+  CHECK_IN_EPS();
 
-  return 0;
+  // Test Case #3: A + AA (device) == A + AA (host)
+  printf("\nTest Case #3: A + AA (device) == A + AA (host)\n");
+  err = snrm2((dA + dAA) - (dmat) (hA + hAA));
+  CHECK_IN_EPS();
 
+  // Test Case #4: A - AA (device) == A - AA (host)
+  printf("\nTest Case #4: A - AA (device) == A - AA (host)\n");
+  err = snrm2((dA - dAA) - (dmat) (hA - hAA));
+  CHECK_IN_EPS();
+
+  // Test Case #5: A / 3.14 (device) == A / 3.14 (host)
+  printf("\nTest Case #5: A / 3.14 (device) == A / 3.14 (host)\n");
+  err = snrm2((dA / 3.14) - (dmat) (hA / 3.14));
+  CHECK_IN_EPS();
+
+  // ==========================================
+  // ===== Matrix - vector multiplication =====
+  // ==========================================
+  printf("\nTest Case #6: Matrix - Vector operations\n");
+  vec hx = load<float>("testing/matrix_lib/x.vec");
+  vec hy = load<float>("testing/matrix_lib/y.vec");
+  dvec dx(hx);
+  dvec dy(hy);
+
+  vec hu1 = hx * hA;
+  dvec du1 = dx * dA;
+  err = norm(du1 - (dvec) hu1);
+  CHECK_IN_EPS();
+
+  vec hu2 = hB * hy;
+  dvec du2 = dB * dy;
+  err = norm(du2 - (dvec) hu2);
+  CHECK_IN_EPS();
+
+  mat hxy(hx * hy);
+  dmat dxy(dx * dy);
+  err = snrm2(dxy - (dmat) hxy);
+  CHECK_IN_EPS();
+
+  vec hz = hx & hx;
+  dvec dz  = dx & dx;
+  err = norm(dz - (dvec) hz);
+  CHECK_IN_EPS();
+
+  return true;
 }
 
 /* Host implementation of a simple version of sgemm */
