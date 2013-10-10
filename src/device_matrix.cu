@@ -127,7 +127,7 @@ device_matrix<T> device_matrix<T>::operator * (const device_matrix<T>& rhs) cons
 
 // ==================================================
 template <typename T>
-device_matrix<T>::operator host_matrix<T>() {
+device_matrix<T>::operator host_matrix<T>() const {
 
   host_matrix<T> cm_h_matrix(_cols, _rows);
 
@@ -171,7 +171,7 @@ void device_matrix<T>::resize(size_t r, size_t c) {
 }
 
 template <typename T>
-void device_matrix<T>::print(size_t precision) {
+void device_matrix<T>::print(size_t precision) const {
   host_matrix<T> hm(*this);
   hm.print(precision);
 }

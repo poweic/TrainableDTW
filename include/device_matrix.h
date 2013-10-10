@@ -78,7 +78,7 @@ public:
   device_matrix<T>& operator *= (const device_matrix<T>& rhs);
   device_matrix<T> operator * (const device_matrix<T>& rhs) const;
 
-  operator host_matrix<T>();
+  operator host_matrix<T>() const;
 
   template <typename S>
   friend void swap(device_matrix<S>& lhs, device_matrix<S>& rhs);
@@ -96,7 +96,7 @@ public:
 
   void _init();
   void resize(size_t r, size_t c);
-  void print(size_t precision = 5);
+  void print(size_t precision = 5) const ;
 
   void fillwith(T val) {
     thrust::device_ptr<T> ptr(_data);
