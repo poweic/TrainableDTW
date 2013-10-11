@@ -1,11 +1,19 @@
 #include <device_matrix.h>
 
 template <typename T>
+device_matrix<T>::device_matrix(): _rows(0), _cols(0), _data(NULL) { }
+
+template <typename T>
 device_matrix<T>::device_matrix(size_t r, size_t c): _rows(r), _cols(c), _data(NULL) {
   _init();
   fillwith(0);
 }
 
+template <typename T>
+device_matrix<T>::device_matrix(const string& filename): _rows(0), _cols(0), _data(NULL) {
+  host_matrix<T> hm(filename);
+  *this = device_matrix<T>(hm);
+}
 // Copy Constructor 
 template <typename T>
 device_matrix<T>::device_matrix(const device_matrix<T>& source): _rows(source._rows), _cols(source._cols), _data(NULL) {
@@ -127,7 +135,7 @@ device_matrix<T> device_matrix<T>::operator * (const device_matrix<T>& rhs) cons
 
 // ==================================================
 template <typename T>
-device_matrix<T>::operator host_matrix<T>() {
+device_matrix<T>::operator host_matrix<T>() const {
 
   host_matrix<T> cm_h_matrix(_cols, _rows);
 
@@ -171,11 +179,16 @@ void device_matrix<T>::resize(size_t r, size_t c) {
 }
 
 template <typename T>
-void device_matrix<T>::print(size_t precision) {
+void device_matrix<T>::print(size_t precision) const {
   host_matrix<T> hm(*this);
   hm.print(precision);
 }
 
+template <typename T>
+void device_matrix<T>::saveas(const string& filename) const {
+  host_matrix<T> hm(*this);
+  hm.saveas(filename);
+}
 // ++++++++++++++++++++++++++++++++++++++++++++
 // +++++ Template Explicit Initialization +++++
 // ++++++++++++++++++++++++++++++++++++++++++++

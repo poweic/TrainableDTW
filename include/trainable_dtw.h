@@ -1,3 +1,6 @@
+#ifndef __TRAINABLE_DTW_H_
+#define __TRAINABLE_DTW_H_
+
 #include <string>
 #include <util.h>
 #include <utility.h>
@@ -5,6 +8,7 @@
 #include <cdtw.h>
 #include <dnn.h>
 #include <corpus.h>
+#include <perf.h>
 
 float dnn_fn(const float* x, const float* y, const int size);
 namespace dtwdnn {
@@ -37,3 +41,5 @@ auto& beta  = const_cast<TwoDimArray<float>&>(dtw->getBeta());
 GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model);
 
 vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
+
+#endif // __TRAINABLE_DTW_H_

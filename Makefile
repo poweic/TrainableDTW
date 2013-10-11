@@ -5,7 +5,7 @@ RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 CC=gcc
 CXX=g++
 CFLAGS=
-NVCC=nvcc -arch=sm_21
+NVCC=nvcc -arch=sm_21 -w
 
 INCLUDE= -I include/ \
 	 -I /usr/local/boton/include/ \
@@ -27,9 +27,9 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp dnn.cpp blas.cpp
-EXECUTABLES=train extract test calc-acoustic-similarity 
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
+EXECUTABLES=train #extract test calc-acoustic-similarity #$(EXAMPLE_PROGRAM) 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -70,11 +70,13 @@ LIBRARY_PATH=-L/usr/local/boton/lib/ \
 	     -L$(UGOC_ROOT)/libutility/lib/x86_64
 
 #-L$(RTK_UTIL_ROOT)/lib
+CU_OBJ=obj/dnn.o obj/device_matrix.o
+CU_LIB=-lcuda -lcublas
 
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-train: $(OBJ) train.cpp obj/trainable_dtw.o
-	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
+	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
@@ -82,11 +84,12 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-dnn_example: $(OBJ) dnn_example.cpp dnn.h
-	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
+dnn_example: $(OBJ) dnn_example.cu dnn.h $(CU_OBJ)
+	$(NVCC) -w $(CFLAGS) $(INCLUDE) -o $@ $< $(CU_OBJ) $@.cu $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 thrust_example: $(OBJ) thrust_example.cu obj/device_matrix.o 
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)  -lcuda -lcublas
+	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 
 ctags:
 	@ctags -R *

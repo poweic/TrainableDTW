@@ -7,12 +7,12 @@
 
 #include <cdtw.h>
 #include <archive_io.h>
-#include <dnn.h>
+//#include <dnn.h>
 #include <utility.h>
 
 using namespace std;
 
-//typedef Matrix2D<double> mat;
+typedef Matrix2D<float> mat;
 
 void goAll();
 mat fast(const Array<string>& files);

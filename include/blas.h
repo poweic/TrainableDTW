@@ -12,51 +12,7 @@
 #define ASSERT_NOT_SCALAR(T) {}
 #endif
 
-#ifndef __CUDACC__
-#define __host__
-#define __device__
-#endif
-
 using namespace std;
-
-// ===============================
-// ===== Template Functional =====
-// ===============================
-namespace func {
-
-  template <typename T>
-  struct apx {
-    const T a;
-    apx(T _a) : a(_a) {}
-    __host__ __device__ T operator() (const T& x) const { return a + x; }
-  };
-
-  template <typename T>
-  struct amx {
-    const T a;
-    amx(T _a) : a(_a) {}
-    __host__ __device__ T operator() (const T& x) const { return a - x; }
-  };
-
-  template <typename T>
-  struct ax {
-    const T a;
-    ax(T _a) : a(_a) {}
-    __host__ __device__ T operator() (const T& x) const { return a * x; }
-  };
-
-  template <typename T>
-  struct adx {
-    const T a;
-    adx(T _a) : a(_a) {}
-    __host__ __device__ T operator() (const T& x) const { return a / x; }
-  };
-
-  template <typename T>
-  struct square {
-    __host__ __device__ T operator() (const T& x) const { return x * x; }
-  };
-};
 
 // =====================================
 // ===== Matrix - Vector Operators =====
@@ -113,6 +69,7 @@ vector<T> operator * (const vector<T>& row_vector, const Matrix2D<T>& A) {
 
 #define VECTOR std::vector
 #define WHERE std
+#include <functional.inl>
 #include <blas.inl>
 #undef VECTOR
 #undef WHERE

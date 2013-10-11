@@ -1,14 +1,54 @@
-#include <vector>
-#include <matrix.h>
-#include <random>
+#ifndef __MATH_EXT_H_
+#define __MATH_EXT_H_
 
-namespace blas {
-  namespace fn {
-    template <typename T>
-    struct sigmoid {
-      T operator()(T x) { return 1 / ( 1 + exp(-x) ); }
-    };
-  };
+#include <vector>
+#include <time.h>
+#include <cstdlib>
+
+#include <matrix.h>
+#include <functional.inl>
+
+namespace ext {
+  // ========================
+  // ===== Save as File =====
+  // ========================
+  template <typename T>
+  void save(const vector<T>& v, string filename) {
+    ofstream fs(filename.c_str());
+
+    foreach (i, v)
+      fs << v[i] << endl;
+
+    fs.close();
+  }
+
+  // ==========================
+  // ===== Load from File =====
+  // ==========================
+  template <typename T>
+  void load(vector<T>& v, string filename) {
+    v.clear();
+
+    ifstream fs(filename.c_str());
+
+    T t;
+    while (fs >> t) 
+      v.push_back(t);
+
+    fs.close();
+  }
+
+  // =================================
+  // ===== Summation over Vector =====
+  // =================================
+  template <typename T>
+  T sum(const vector<T>& v) {
+    T s = 0;
+    foreach (i, v)
+      s += v[i];
+    return s;
+  }
+
   // ==================================
   // ===== First Order Difference =====
   // ==================================
@@ -23,34 +63,30 @@ namespace blas {
   // =========================
   // ===== Random Vector =====
   // =========================
+  
+  template <typename T>
+  T rand01() {
+    return (T) ::rand() / (T) RAND_MAX;
+  }
+  
   template <typename T>
   vector<T> rand(size_t size) {
+    srand(time(NULL));
     vector<T> v(size);
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dist(0, 1);
-
     foreach (i, v)
-      v[i] = dist(gen);
+      v[i] = rand01<T>();
 
     return v;
   }
 
   template <typename T>
-  Matrix2D<T> rand(size_t m, size_t n) {
+  void rand(Matrix2D<T>& m) {
+    srand(time(NULL));
 
-    Matrix2D<T> R(m, n);
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dist(0, 1);
-
-    for (size_t i=0; i<m; ++i)
-      for (size_t j=0; j<n; ++j)
-	R[i][j] = dist(gen);
-
-    return R;
+    for (size_t i=0; i<m.getRows(); ++i)
+      for (size_t j=0; j<m.getCols(); ++j)
+	m[i][j] = rand01<T>();
   }
 
   // ===================
@@ -63,7 +99,7 @@ namespace blas {
     foreach (i, s)
       s[i] = exp(x[i]);
 
-    auto denominator = 1.0 / vecsum(s);
+    T denominator = 1.0 / ext::sum(s);
     foreach (i, s)
       s[i] *= denominator;
 
@@ -76,7 +112,7 @@ namespace blas {
   template <typename T>
   vector<T> sigmoid(const vector<T>& x) {
     vector<T> s(x.size());
-    std::transform(x.begin(), x.end(), s.begin(), fn::sigmoid<float>());
+    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<float>());
     return s;
   }
 
@@ -86,9 +122,11 @@ namespace blas {
   template <typename T>
   vector<T> b_sigmoid(const vector<T>& x) {
     vector<T> s(x.size() + 1);
-    std::transform(x.begin(), x.end(), s.begin(), fn::sigmoid<float>());
+    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<float>());
     s[s.size() - 1] = 1.0;
     return s;
   }
   
 };
+
+#endif
