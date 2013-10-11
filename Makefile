@@ -29,7 +29,7 @@ CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
 SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
-EXECUTABLES=train #extract test calc-acoustic-similarity #$(EXAMPLE_PROGRAM) 
+EXECUTABLES=train extract test calc-acoustic-similarity $(EXAMPLE_PROGRAM) 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags

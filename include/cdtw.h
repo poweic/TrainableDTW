@@ -50,6 +50,7 @@ namespace DtwUtil {
 
       void DTW();
       void calcBeta();
+      void calcAlpha();
 
       const Table& getAlpha() const { return score_; }
       const Table& getBeta() const { return beta_; }
@@ -69,12 +70,15 @@ namespace DtwUtil {
       const DenseFeature& getD() const { return this->dparm_->Feat(); }
       double getCumulativeScore() const { return _cScore; }
 
-      static unsigned nsnippet_;
+      static void setWndSize(size_t wndSize) { wndSize_ = wndSize; }
+
       double _cScore;
     protected:
       virtual void CalScoreTable();
     private:
       TwoDimArray<float> beta_;
+
+      static size_t wndSize_;
   };
 
 };

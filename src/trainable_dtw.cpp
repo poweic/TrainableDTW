@@ -151,7 +151,7 @@ namespace dtwdiag39 {
       dTheta = dTheta / (double) samples.size();
       updateTheta(theta, dTheta);
 
-      print(theta);
+      //print(theta);
       saveTheta();
       calcObjective(samples);
     }
@@ -180,13 +180,12 @@ namespace dtwdiag39 {
     cout << "# of batches = " << nBatch << endl;
     for (itr=0; itr<nBatch; ++itr) {
       vector<tsample> samples = corpus.getSamples(batchSize);
-      cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
+      printf("iteration "BLUE"%8lu"COLOREND"\n", itr);
 
       vector<double> dTheta(39);
+      vector<double> dThetaPerSample(39);
       foreach (i, samples) {
-	vector<double> dThetaPerSample(39);
 	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
-
 	bool positive = samples[i].second;
 	dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
       }
@@ -194,13 +193,13 @@ namespace dtwdiag39 {
       dTheta = dTheta / (double) samples.size();
       updateTheta(theta, dTheta);
 
-      print(theta);
+      //print(theta);
       saveTheta();
     }
   }
 
   void updateTheta(vector<double>& theta, vector<double>& delta) {
-    static double learning_rate = 0.01;
+    static double learning_rate = 0.0001;
     double maxNorm = 1;
 
     // Adjust Learning Rate || Adjust delta 
