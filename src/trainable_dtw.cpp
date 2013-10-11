@@ -18,7 +18,9 @@ namespace dtwdnn {
 
     cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
 
+    perf::Timer timer;
     for (size_t itr=0; itr<10000; ++itr) {
+      timer.start();
 
       GRADIENT dTheta, ddTheta;
       model.getEmptyGradient(dTheta);
@@ -35,6 +37,9 @@ namespace dtwdnn {
 
       calcObjective(samples);
       model.save("data/dtwdnn.model/");
+
+      timer.stop();
+      printf("Took "BLUE"%.4f"COLOREND" ms per update\n", timer.getTime() / (itr + 1) );
     }
   }
 
@@ -146,6 +151,7 @@ namespace dtwdiag39 {
       dTheta = dTheta / (double) samples.size();
       updateTheta(theta, dTheta);
 
+      print(theta);
       saveTheta();
       calcObjective(samples);
     }
@@ -194,7 +200,7 @@ namespace dtwdiag39 {
   }
 
   void updateTheta(vector<double>& theta, vector<double>& delta) {
-    static double learning_rate = 0.00001;
+    static double learning_rate = 0.01;
     double maxNorm = 1;
 
     // Adjust Learning Rate || Adjust delta 
@@ -241,6 +247,7 @@ GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
       double coeff = alpha(i, j) + beta(i, j) - cScore;
       coeff = exp(SMIN::eta * coeff);
 
+      model.evaluate(qi, dj);
       model.calcGradient(qi, dj);
       auto gg = coeff * (model.getGradient());
       g += gg;

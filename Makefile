@@ -5,7 +5,7 @@ RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 CC=gcc
 CXX=g++
 CFLAGS=
-NVCC=nvcc -arch=sm_21
+NVCC=nvcc -arch=sm_21 -w
 
 INCLUDE= -I include/ \
 	 -I /usr/local/boton/include/ \
@@ -27,9 +27,9 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
-EXECUTABLES=extract test calc-acoustic-similarity train $(EXAMPLE_PROGRAM) 
+EXECUTABLES=train #extract test calc-acoustic-similarity #$(EXAMPLE_PROGRAM) 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -75,7 +75,7 @@ CU_LIB=-lcuda -lcublas
 
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-train: $(OBJ) train.cu obj/trainable_dtw.o $(CU_OBJ)
+train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)

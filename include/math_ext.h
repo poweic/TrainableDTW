@@ -64,27 +64,29 @@ namespace ext {
   // ===== Random Vector =====
   // =========================
   
-  inline double rand01() {
-    srand(time(NULL));
-    return (double) rand() / (double) RAND_MAX;
+  template <typename T>
+  T rand01() {
+    return (T) ::rand() / (T) RAND_MAX;
   }
-
+  
   template <typename T>
   vector<T> rand(size_t size) {
+    srand(time(NULL));
     vector<T> v(size);
 
     foreach (i, v)
-      v[i] = rand01();
+      v[i] = rand01<T>();
 
     return v;
   }
 
   template <typename T>
   void rand(Matrix2D<T>& m) {
+    srand(time(NULL));
 
     for (size_t i=0; i<m.getRows(); ++i)
       for (size_t j=0; j<m.getCols(); ++j)
-	m[i][j] = rand01();
+	m[i][j] = rand01<T>();
   }
 
   // ===================

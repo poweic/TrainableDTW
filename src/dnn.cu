@@ -128,12 +128,12 @@ void swap(GRADIENT& lhs, GRADIENT& rhs) {
 // ===============================
 Model::Model() {}
 
-Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _pp(pp_dim), _dtw(dtw_dim) {
+Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
   _w = ext::rand<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
-Model::Model(const Model& source): _pp(source._pp), _w(source._w), _dtw(source._dtw), gradient(source.gradient), hidden_output(source.hidden_output) {}
+Model::Model(const Model& source): gradient(source.gradient), hidden_output(source.hidden_output), _lr(source._lr), _pp(source._pp), _w(source._w), _dtw(source._dtw) {}
 
 Model& Model::operator = (Model rhs) {
   swap(*this, rhs);
@@ -210,17 +210,19 @@ void Model::calcGradient(const vec& x, const vec& y) {
 void Model::updateParameters(GRADIENT& g) {
   GRADIENT_ALIASING(g, ppg1, ppg2, mg, dtwg);
 
-  float learning_rate = -0.001;
-
   vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i] += learning_rate * (ppg1[i] + ppg2[i]); 
+    ppw[i] += _lr * (ppg1[i] + ppg2[i]); 
 
-  this->_w += learning_rate * mg;
+  this->_w += _lr * mg;
 
   vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
-    dtww[i] += learning_rate * dtwg[i];
+    dtww[i] += _lr * dtwg[i];
+}
+
+void Model::setLearningRate(float learning_rate) {
+  _lr = learning_rate;
 }
 
 HIDDEN_OUTPUT& Model::getHiddenOutput() {
@@ -279,11 +281,12 @@ void Model::print() const {
 
 void swap(Model& lhs, Model& rhs) {
   using std::swap;
+  swap(lhs.hidden_output, rhs.hidden_output);
+  swap(lhs.gradient, rhs.gradient);
+  swap(lhs._lr , rhs._lr );
   swap(lhs._pp , rhs._pp );
   swap(lhs._w  , rhs._w  );
   swap(lhs._dtw, rhs._dtw);
-  swap(lhs.gradient, rhs.gradient);
-  swap(lhs.hidden_output, rhs.hidden_output);
 }
 
 

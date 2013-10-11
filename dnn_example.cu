@@ -23,7 +23,7 @@ int main (int argc, char* argv[]) {
   ext::load(y, "data/test.vy");
 
   int M = 74;
-  int WIDTH = 5;
+  int WIDTH = 512;
   vector<size_t> d1(5), d2(5);
   d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = WIDTH; d1[4] = M;
   d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = WIDTH; d2[4] = 1;
@@ -41,6 +41,8 @@ int main (int argc, char* argv[]) {
     model.calcGradient(x, y);
     model.updateParameters(model.getGradient());
   }
+
+  print(d);
 
   model.save("exp/dtwdnn.gpu/");
   

@@ -10,10 +10,8 @@
 #include <thrust/device_vector.h>
 using namespace std;
 
-typedef Matrix2D<float> mat;
-typedef vector<float> vec;
-// typedef device_matrix<float> mat;
-// typedef thrust::device_vector<float> vec;
+typedef Matrix2D<float> mat; typedef vector<float> vec;
+// typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
 
 // typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
 // typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
@@ -99,6 +97,7 @@ public:
   void calcGradient(const vec& x, const vec& y);
   void calcGradient(const float* x, const float* y);
   void updateParameters(GRADIENT& g);
+  void setLearningRate(float learning_rate);
 
   HIDDEN_OUTPUT& getHiddenOutput();
   GRADIENT& getGradient();
@@ -111,6 +110,8 @@ public:
 private:
   HIDDEN_OUTPUT hidden_output;
   GRADIENT gradient;
+
+  float _lr;
 
   vec _w;
   DNN _pp;
