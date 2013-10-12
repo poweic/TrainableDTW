@@ -49,6 +49,19 @@ namespace ext {
     return s;
   }
 
+  // =================================
+  // ===== Summation over Vector =====
+  // =================================
+  template <typename T>
+  T sum(const Matrix2D<T>& m) {
+    T s = 0;
+    range ( i, m.getRows() )
+      range ( j, m.getCols() )
+	s += m[i][j];
+      
+    return s;
+  }
+
   // ==================================
   // ===== First Order Difference =====
   // ==================================
@@ -112,7 +125,7 @@ namespace ext {
   template <typename T>
   vector<T> sigmoid(const vector<T>& x) {
     vector<T> s(x.size());
-    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<float>());
+    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<T>());
     return s;
   }
 
@@ -122,8 +135,8 @@ namespace ext {
   template <typename T>
   vector<T> b_sigmoid(const vector<T>& x) {
     vector<T> s(x.size() + 1);
-    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<float>());
-    s[s.size() - 1] = 1.0;
+    std::transform(x.begin(), x.end(), s.begin(), func::sigmoid<T>());
+    s.back() = 1.0;
     return s;
   }
   

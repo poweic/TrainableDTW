@@ -5,7 +5,15 @@
 #include <util.h>
 #include <utility.h>
 #include <vector>
+
+#define DTW_SLOPE_CONSTRAINT
+
+#ifdef DTW_SLOPE_CONSTRAINT
+#pragma message ORANGE"slope constraint on DTW is enabled."COLOREND
+#endif
+
 #include <cdtw.h>
+
 #include <dnn.h>
 #include <corpus.h>
 #include <perf.h>
@@ -35,8 +43,6 @@ const auto& Q = dtw->getQ();\
 const auto& D = dtw->getD();\
 auto& alpha = const_cast<TwoDimArray<float>&>(dtw->getAlpha());\
 auto& beta  = const_cast<TwoDimArray<float>&>(dtw->getBeta());
-
-#define PARAMETER_TYPE vector<double>
 
 GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model);
 

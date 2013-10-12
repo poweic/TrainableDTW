@@ -70,6 +70,7 @@ namespace DtwUtil {
       const DenseFeature& getD() const { return this->dparm_->Feat(); }
       double getCumulativeScore() const { return _cScore; }
 
+      static size_t getWndSize() { return wndSize_; }
       static void setWndSize(size_t wndSize) { wndSize_ = wndSize; }
 
       double _cScore;

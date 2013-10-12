@@ -65,6 +65,7 @@ MATRIX<T> operator * (const VECTOR<T>& col_vector, const VECTOR<T>& row_vector) 
 
 template <typename T>
 VECTOR<T> operator & (const VECTOR<T>& x, const VECTOR<T>& y) {
+  assert(x.size() == y.size());
   VECTOR<T> z(x.size());
   thrust::transform(x.begin(), x.end(), y.begin(), z.begin(), thrust::multiplies<T>());
   return z;
@@ -179,7 +180,7 @@ namespace ext {
   thrust::device_vector<T> b_sigmoid(const thrust::device_vector<T>& x) {
     thrust::device_vector<T> s(x.size() + 1);
     thrust::transform(x.begin(), x.end(), s.begin(), func::sigmoid<T>());
-    s[s.size() - 1] = 1.0;
+    s.back() = 1.0;
     return s;
   }
 

@@ -24,9 +24,8 @@ void signalHandler(int param);
 void regSignalHandler();
 
 string scoreDir;
-vector<double> theta;
-size_t itr;
 Model model;
+vector<double> theta;
 
 int main (int argc, char* argv[]) {
   
@@ -70,20 +69,20 @@ int main (int argc, char* argv[]) {
   // Parsering Command Arguments
   string phase = cmdParser.find("-p");
 
-  size_t batchSize = str2int(cmdParser.find("--batch-size"));
-  size_t N = str2int(cmdParser.find("-n"));
-  string MFCC_DIR = cmdParser.find("--mfcc-root");
+  size_t batchSize  = str2int(cmdParser.find("--batch-size"));
+  size_t N	    = str2int(cmdParser.find("-n"));
+  string MFCC_DIR   = cmdParser.find("--mfcc-root");
 
-  string phones_filename = cmdParser.find("--phone-mapping");
-  Array<string> phones = getPhoneList(phones_filename);
-  string matFile = cmdParser.find("-o");
-  bool resume = cmdParser.find("--resume-training") == "true";
-  bool reevaluate = cmdParser.find("--re-evaluate") == "true"; 
-  SMIN::eta = str2double(cmdParser.find("--eta"));
-  bool validationOnly = cmdParser.find("--validation-only") == "true";
-  float lr = str2float(cmdParser.find("--learning-rate"));
-  size_t nHiddenLayer = str2int(cmdParser.find("--layers"));
-  size_t nHiddenNodes = str2int(cmdParser.find("--hidden-nodes"));
+  string phones_filename  = cmdParser.find("--phone-mapping");
+  Array<string> phones	  = getPhoneList(phones_filename);
+  string matFile	  = cmdParser.find("-o");
+  bool resume		  = cmdParser.find("--resume-training") == "true";
+  bool reevaluate	  = cmdParser.find("--re-evaluate") == "true"; 
+  SMIN::eta		  = str2double(cmdParser.find("--eta"));
+  bool validationOnly	  = cmdParser.find("--validation-only") == "true";
+  float lr		  = str2float(cmdParser.find("--learning-rate"));
+  size_t nHiddenLayer	  = str2int(cmdParser.find("--layers"));
+  size_t nHiddenNodes	  = str2int(cmdParser.find("--hidden-nodes"));
 
   theta.resize(39);
   if (resume) {
@@ -96,15 +95,15 @@ int main (int argc, char* argv[]) {
   profile.tic();
 
   //model.load("data/dtwdnn.model/");
-  //initModel(model, nHiddenLayer, nHiddenNodes, lr);
+  initModel(model, nHiddenLayer, nHiddenNodes, lr);
 
   if (phase == "validate") {
-    // dtwdnn::validation();
-    dtwdiag39::validation();
+    // dtwdiag39::validation();
+    dtwdnn::validation();
   }
   else if (phase == "train") {
-    dtwdiag39::train(batchSize);
-    // dtwdnn::train(batchSize);
+    // dtwdiag39::train(batchSize);
+    dtwdnn::train(batchSize);
   }
   else if (phase == "evaluate") {
 
@@ -120,8 +119,10 @@ void initModel(Model& model, size_t nLayer, size_t nHiddenNodes, float lr) {
   vector<size_t> d1(nLayer + 2), d2(nLayer + 2);
   printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", nLayer, nHiddenNodes);
 
-  d1[0] = 39; d1.back() = 74;
-  d2[0] = 74; d2.back() = 1;
+  size_t bottlenect_dim = 5;
+
+  d1[0] = 39; d1.back() = bottlenect_dim;
+  d2[0] = bottlenect_dim; d2.back() = 1;
 
   for (size_t i=1; i<d1.size() - 1; ++i)
     d1[i] = d2[i] = nHiddenNodes;
@@ -161,7 +162,7 @@ Array<string> getPhoneList(string filename) {
 }
 
 void signalHandler(int param) {
-  cout << RED "[Interrupted]" COLOREND << " aborted by user. # of iteration = " << itr << endl;
+  cout << RED "[Interrupted]" COLOREND << " aborted by user." << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
   dtwdiag39::saveTheta();

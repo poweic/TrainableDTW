@@ -8,13 +8,17 @@
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+
+#ifndef __CUDACC__
+#define WHERE std
+#else
+#define WHERE thrust
+#endif
+
 using namespace std;
 
 typedef Matrix2D<float> mat; typedef vector<float> vec;
 // typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
-
-// typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
-// typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
 
 vec loadvector(string filename);
 
@@ -27,7 +31,7 @@ public:
 
   void randInit();
   void feedForward(const vec& x, vector<vec>* hidden_output);
-  vec backPropagate(const vec& x, vector<vec>* hidden_output, vector<mat>* gradient);
+  vec backPropagate(vec p, vector<vec>& hidden_output, vector<mat>& gradient);
 
   size_t getNLayer() const;
   size_t getDepth() const;
@@ -132,5 +136,6 @@ GRADIENT operator * (float c, GRADIENT g);
 GRADIENT operator / (GRADIENT g, float c);
 
 void print(GRADIENT& g);
+float sum(GRADIENT& g);
 
 #endif  // __DNN_H_

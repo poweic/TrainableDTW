@@ -76,20 +76,6 @@ VECTOR<T> operator + (U val, VECTOR<T> v) {
   return (v += val);
 }
 
-// =============================
-// ====== vector + vector ======
-// =============================
-// [1 2 3] + [2 3 4] ==> [3 5 7]
-template <typename T>
-VECTOR<T>& operator += (VECTOR<T> &v1, const VECTOR<T> &v2) {
-  WHERE::transform(v1.begin(), v1.end(), v2.begin(), v1.begin(), WHERE::plus<T>());
-  return v1;
-}
-template <typename T>
-VECTOR<T> operator + (VECTOR<T> v1, const VECTOR<T> &v2) {
-  return (v1 += v2);
-}
-
 // ===========================
 // ===== vector - scalar =====
 // ===========================
@@ -120,11 +106,28 @@ VECTOR<T> operator - (U val, VECTOR<T> v) {
 }
 
 // =============================
+// ====== vector + vector ======
+// =============================
+// [1 2 3] + [2 3 4] ==> [3 5 7]
+template <typename T>
+VECTOR<T>& operator += (VECTOR<T> &v1, const VECTOR<T> &v2) {
+  assert(v1.size() == v2.size());
+  WHERE::transform(v1.begin(), v1.end(), v2.begin(), v1.begin(), WHERE::plus<T>());
+  return v1;
+}
+
+template <typename T>
+VECTOR<T> operator + (VECTOR<T> v1, const VECTOR<T> &v2) {
+  return (v1 += v2);
+}
+
+// =============================
 // ====== vector - vector ======
 // =============================
 // [2 3 4] - [1 2 3] ==> [1 1 1]
 template <typename T>
 VECTOR<T>& operator -= (VECTOR<T> &v1, const VECTOR<T> &v2) {
+  assert(v1.size() == v2.size());
   WHERE::transform(v1.begin(), v1.end(), v2.begin(), v1.begin(), WHERE::minus<T>());
   return v1;
 }

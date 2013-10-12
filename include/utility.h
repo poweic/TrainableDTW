@@ -93,7 +93,7 @@ void normalize(vector<T>& v, int type = 2) {
 }
 
 template <typename T>
-void print(const vector<T>& v, size_t n_digits = 6) {
+void print(const vector<T>& v, size_t n_digits = 3) {
 
   string format = "%." + int2str(n_digits) + "f ";
   printf("[");
