@@ -119,7 +119,7 @@ void initModel(Model& model, size_t nLayer, size_t nHiddenNodes, float lr) {
   vector<size_t> d1(nLayer + 2), d2(nLayer + 2);
   printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", nLayer, nHiddenNodes);
 
-  size_t bottlenect_dim = 5;
+  size_t bottlenect_dim = 74;
 
   d1[0] = 39; d1.back() = bottlenect_dim;
   d2[0] = bottlenect_dim; d2.back() = 1;
@@ -129,36 +129,6 @@ void initModel(Model& model, size_t nLayer, size_t nHiddenNodes, float lr) {
 
   model = Model(d1, d2);
   model.setLearningRate(lr);
-}
-
-void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile) {
-  if (reevaluate)
-    computeBetweenPhoneDistance(phones, MFCC_DIR, N, scoreDir);
-
-  Matrix2D<double> scores = comparePhoneDistances(phones, scoreDir);
-
-  if (!matFile.empty())
-    scores.saveas(matFile);
-
-  deduceCompetitivePhones(phones, scores);
-
-  debug(objective(scores));
-}
-
-Array<string> getPhoneList(string filename) {
-
-  Array<string> list;
-
-  fstream file(filename.c_str());
-  string line;
-  while( std::getline(file, line) ) {
-    vector<string> sub = split(line, ' ');
-    string phone = sub[0];
-    list.push_back(phone);
-  }
-  file.close();
-
-  return list;
 }
 
 void signalHandler(int param) {

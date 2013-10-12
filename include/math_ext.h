@@ -72,19 +72,80 @@ namespace ext {
       diff[i] = v[i+1] - v[i];
     return diff;
   }
-  
-  // =========================
-  // ===== Random Vector =====
-  // =========================
-  
+
   template <typename T>
-  T rand01() {
+  inline bool is_inf(T x) {
+    return x == std::numeric_limits<T>::infinity() || x == -std::numeric_limits<T>::infinity();
+  }
+
+#define PI 3.14159265
+  // =============================================
+  // ===== Normal Distribution Random Number =====
+  // =============================================
+  template <typename T>
+  T unif(T &seed) {
+    T a1=3972.0,a2=4094.0;
+    T m=2147483647.0;
+    T seed1,seed2;
+    seed1 = a1 * seed ;
+    seed2 = a2 * seed ;
+    /* control seed < 10^10 */
+    seed1 = seed1 - (long)(seed1/m) * m ;
+    seed2 = seed2 - (long)(seed2/m) * m ;
+    seed = seed1 * 100000.0 + seed2;
+    seed = seed - (long)(seed/m)*m;
+
+    T u = seed/m;
+    return (u < 0) ? -u : u;
+  }
+
+  template <typename T>
+  T randn(T mean, T var) {
+    static int counter = 0;
+    T sz=0.0,v1,v2,sigma,ans;
+    T seed1,seed2;
+    sigma=sqrt(var);
+    seed1=rand()+clock()*123;
+    v1=unif<T>(seed1);
+
+    do {
+      seed2=fabs(clock()*1236*var+rand()-seed1);
+      v2=unif<T>(seed2);
+    } while (v2 == 0);
+
+    sz=cos(2.*PI*v1)*sqrt(-2.*log(v2));
+    ans=sz*sigma+mean;
+    return(ans);
+  }
+
+  template <typename T>
+  vector<T> randn(size_t size) {
+    vector<T> v(size);
+
+    foreach (i, v)
+      v[i] = randn<T>(0, 1);
+
+    return v;
+  }
+
+  template <typename T>
+  void randn(Matrix2D<T>& m) {
+
+    for (size_t i=0; i<m.getRows(); ++i)
+      for (size_t j=0; j<m.getCols(); ++j)
+	m[i][j] = randn<T>(0, 1);
+  }
+
+  // ==========================
+  // ===== Uniform Random =====
+  // ==========================
+  template <typename T>
+    T rand01() {
     return (T) ::rand() / (T) RAND_MAX;
   }
-  
+
   template <typename T>
   vector<T> rand(size_t size) {
-    srand(time(NULL));
     vector<T> v(size);
 
     foreach (i, v)
@@ -95,7 +156,6 @@ namespace ext {
 
   template <typename T>
   void rand(Matrix2D<T>& m) {
-    srand(time(NULL));
 
     for (size_t i=0; i<m.getRows(); ++i)
       for (size_t j=0; j<m.getCols(); ++j)
@@ -140,6 +200,15 @@ namespace ext {
     return s;
   }
   
+  namespace randomgenerator {
+    inline time_t srander() {
+      time_t t = time(NULL);
+      srand(t);
+      return t;
+    }
+
+    static time_t _random_seed_ = srander();
+  };
 };
 
 #endif

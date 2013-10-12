@@ -7,8 +7,8 @@
 
 #include <cdtw.h>
 #include <archive_io.h>
-//#include <dnn.h>
 #include <utility.h>
+#include <math_ext.h>
 
 using namespace std;
 
@@ -29,9 +29,17 @@ string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
 
-  goAll();
+  mat m(1000, 1000);
+  ext::randn(m);
 
-  Array<string> files("test.list");
+  int nInf = 0;
+  range (i, m.getRows())
+    range (j, m.getCols())
+      assert(!ext::is_inf(m[i][j]));
+
+  //goAll();
+
+  //Array<string> files("test.list");
   //mat s1 = fast(files);
   //mat s2 = golden::go(files);
 

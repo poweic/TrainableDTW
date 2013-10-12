@@ -1,4 +1,5 @@
 #include <phone_stat.h>
+extern string scoreDir;
 
 void deduceCompetitivePhones(const Array<string>& phones, const Matrix2D<double>& scores) {
   for (size_t i=0; i<scores.getRows(); ++i) {
@@ -167,3 +168,35 @@ double average(const Matrix2D<double>& m, double MIN) {
   }
   return total / counter;
 }
+
+void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile) {
+
+  if (reevaluate)
+    computeBetweenPhoneDistance(phones, MFCC_DIR, N, scoreDir);
+
+  Matrix2D<double> scores = comparePhoneDistances(phones, scoreDir);
+
+  if (!matFile.empty())
+    scores.saveas(matFile);
+
+  deduceCompetitivePhones(phones, scores);
+
+  debug(objective(scores));
+}
+
+Array<string> getPhoneList(string filename) {
+
+  Array<string> list;
+
+  fstream file(filename.c_str());
+  string line;
+  while( std::getline(file, line) ) {
+    vector<string> sub = split(line, ' ');
+    string phone = sub[0];
+    list.push_back(phone);
+  }
+  file.close();
+
+  return list;
+}
+

@@ -12,10 +12,7 @@
 
 #include <blas.h>
 #include <device_blas.h>
-#include <device_matrix.h>
-/* Matrix size */
-#define N  (275)
-#define DIVIDER(x) cout << GREEN"========== "x" =========="COLOREND << endl;
+#include <device_math_ext.h>
 
 typedef Matrix2D<float> mat;
 typedef vector<float> vec;
@@ -31,16 +28,6 @@ int main (int argc, char* argv[]) {
 
   blas_testing_examples();
   device_blas_testing_examples();
-}
-
-template <typename T>
-T matsum(const Matrix2D<T>& m) {
-  T sum = 0;
-  for (size_t i=0; i<m.getRows(); ++i)
-    for (size_t j=0; j<m.getCols(); ++j)
-      sum += m[i][j];
-
-  return sum;
 }
 
 #define CHECK_IN_EPS(note) \
@@ -154,8 +141,8 @@ bool device_blas_testing_examples() {
   return true;
 }
 
-/* Host implementation of a simple version of sgemm */
-void simple_sgemm(int n, float alpha, const float *A, const float *B, float beta, float *C) {
+// Host implementation of a simple version of sgemm
+/*void simple_sgemm(int n, float alpha, const float *A, const float *B, float beta, float *C) {
     int i, j, k;
 
     for (i = 0; i < n; ++i) {
@@ -168,10 +155,14 @@ void simple_sgemm(int n, float alpha, const float *A, const float *B, float beta
             C[j * n + i] = alpha * prod + beta * C[j * n + i];
         }
     }
-}
+}*/
 
+/*
 int cublas_example() {
     cublasStatus_t status;
+
+    const size_t N = 275;
+
     float *h_C_ref;
     float alpha = 1.0f;
     float beta = 0.0f;
@@ -181,24 +172,24 @@ int cublas_example() {
     float diff;
     cublasHandle_t handle;
 
-    /* Initialize CUBLAS */
+    // Initialize CUBLAS
     printf("simpleCUBLAS test running..\n");
 
     CCE(cublasCreate(&handle));
 
-    /* Allocate host memory for the matrices */
+    // Allocate host memory for the matrices
     float *h_A = new float[n2 * sizeof(h_A[0])];
     float *h_B = new float[n2 * sizeof(h_B[0])];
     float *h_C = new float[n2 * sizeof(h_C[0])];
 
-    /* Fill the matrices with test data */
+    // Fill the matrices with test data
     for (int i = 0; i < n2; i++) {
         h_A[i] = rand() / (float)RAND_MAX;
         h_B[i] = rand() / (float)RAND_MAX;
         h_C[i] = rand() / (float)RAND_MAX;
     }
 
-    /* Allocate device memory for the matrices */
+    // Allocate device memory for the matrices
     float *d_A = NULL;
     float *d_B = NULL;
     float *d_C = NULL;
@@ -207,29 +198,29 @@ int cublas_example() {
     CCE(cudaMalloc((void **)&d_B, n2 * sizeof(d_B[0])));
     CCE(cudaMalloc((void **)&d_C, n2 * sizeof(d_C[0])));
 
-    /* Initialize the device matrices with the host matrices */
+    // Initialize the device matrices with the host matrices
     CCE(cublasSetVector(n2, sizeof(h_A[0]), h_A, 1, d_A, 1));
     CCE(cublasSetVector(n2, sizeof(h_B[0]), h_B, 1, d_B, 1));
     CCE(cublasSetVector(n2, sizeof(h_C[0]), h_C, 1, d_C, 1));
 
-    /* Performs operation using plain C code */
+    // Performs operation using plain C code
     simple_sgemm(N, alpha, h_A, h_B, beta, h_C);
     h_C_ref = h_C;
 
-    /* Performs operation using cublas */
+    // Performs operation using cublas
     status = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, N, N, &alpha, d_A, N, d_B, N, &beta, d_C, N);
 
     CCE(status);
 
-    /* Allocate host memory for reading back the result from device memory */
+    // Allocate host memory for reading back the result from device memory
     h_C = new float[n2 * sizeof(h_C[0])];
 
-    /* Read the result back */
+    // Read the result back
     status = cublasGetVector(n2, sizeof(h_C[0]), d_C, 1, h_C, 1);
 
     CCE(status);
 
-    /* Check result against reference */
+    // Check result against reference
     error_norm = 0;
     ref_norm = 0;
 
@@ -247,7 +238,7 @@ int cublas_example() {
         return EXIT_FAILURE;
     }
 
-    /* Memory clean up */
+    // Memory clean up
     delete h_A;
     delete h_B;
     delete h_C;
@@ -257,8 +248,9 @@ int cublas_example() {
     CCE(cudaFree(d_B));
     CCE(cudaFree(d_C));
 
-    /* Shutdown */
+    // Shutdown
     CCE(cublasDestroy(handle));
 
     return error_norm / ref_norm < 1e-6f ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+*/

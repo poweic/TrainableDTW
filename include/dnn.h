@@ -3,6 +3,7 @@
 
 #include <blas.h>
 #include <device_blas.h>
+#include <device_math_ext.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -14,6 +15,8 @@
 #else
 #define WHERE thrust
 #endif
+
+#define dsigma(x) ((x) & ((float) 1.0 - (x)))
 
 using namespace std;
 

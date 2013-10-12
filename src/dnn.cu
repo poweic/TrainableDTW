@@ -1,6 +1,5 @@
 #include <dnn.h>
 #include <utility.h>
-#define dsigma(x) ((x) & ((float) 1.0 - (x)))
 
 vec loadvector(string filename) {
   Array<float> arr(filename);
@@ -61,7 +60,7 @@ const vector<size_t>& DNN::getDims() const { return _dims; }
 
 void DNN::randInit() {
   foreach (i, _weights)
-    ext::rand(_weights[i]);
+    ext::randn(_weights[i]);
 }
 
 // ========================
@@ -80,7 +79,7 @@ void DNN::feedForward(const vec& x, vector<vec>* hidden_output) {
     O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
 
   size_t end = O.size() - 1;
-  O[end] = ext::sigmoid(O[end - 1] * _weights[end - 1]);
+  O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
 }
 
 // ============================
@@ -129,7 +128,7 @@ void swap(GRADIENT& lhs, GRADIENT& rhs) {
 Model::Model() {}
 
 Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
-  _w = ext::rand<float>(_dtw.getDims()[0]);
+  _w = ext::randn<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
@@ -166,6 +165,15 @@ float Model::evaluate(const vec& x, const vec& y) {
 
   _pp.feedForward(x, &Ox);
   _pp.feedForward(y, &Oy);
+
+  /*if (ext::sum(Ox.back()) != Ox.back().size()) {
+    cout << endl;
+    ::print(x, 3);
+    cout << GREEN" vvvvvvvvvvvvvvvvvvvvvvvvvv "COLOREND << endl;
+    ::print(Ox.back(), 3);
+    cout << RED << "HERE" << COLOREND << endl;
+    doPause();
+  }*/
 
   Ox.back() = ext::softmax(Ox.back());
   Oy.back() = ext::softmax(Oy.back());
