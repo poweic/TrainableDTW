@@ -41,6 +41,7 @@ namespace dtwdnn {
 	dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
       }
 
+
       dTheta /= samples.size();
       model.updateParameters(dTheta);
 
@@ -139,7 +140,6 @@ GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
       model.evaluate(qi, dj);
       model.calcGradient(qi, dj);
       auto gg = coeff * (model.getGradient());
-      debug(sum(gg));
       g += gg;
     }
   }

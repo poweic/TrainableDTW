@@ -26,7 +26,7 @@ int main (int argc, char* argv[]) {
   device_matrix<float> dm(10, 10);
   ext::rand(dm);
 
-  blas_testing_examples();
+  //blas_testing_examples();
   device_blas_testing_examples();
 }
 

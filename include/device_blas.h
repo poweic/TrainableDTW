@@ -17,17 +17,15 @@ T norm(const thrust::device_vector<T>& v) {
 }
 
 template <typename T>
-void print(const thrust::host_vector<T>& v) {
-  printf("[");
-  for (size_t i=0; i<v.size(); ++i)
-    printf("%.6f ", v[i]);
-  printf("]\n");
+void print(const thrust::host_vector<T>& v, int precision = 4) {
+  std::vector<T> stl_v(v.begin(), v.end());
+  ::print(stl_v);
 }
 
 template <typename T>
-void print(const thrust::device_vector<T>& v) {
+void print(const thrust::device_vector<T>& v, int precision = 4) {
   thrust::host_vector<T> hv(v);
-  print(hv);
+  print(hv, precision);
 }
 
 // =====================================
@@ -36,6 +34,25 @@ void print(const thrust::device_vector<T>& v) {
 
 #define VECTOR thrust::device_vector
 #define MATRIX device_matrix
+
+template <typename T>
+bool hasNAN(const MATRIX<T>& m) {
+  Matrix2D<T> hm(m);
+  for (size_t i=0; i < hm.getRows(); ++i )
+    for (size_t j=0; j < hm.getCols(); ++j)
+      if (hm[i][j] != hm[i][j])
+	return true;
+  return false;
+}
+
+template <typename T>
+bool hasNAN(const VECTOR<T>& v) {
+  thrust::host_vector<T> hv(v);
+  for (size_t i=0; i < hv.size(); ++i)
+    if (hv[i] != hv[i])
+      return true;
+  return false;
+}
 
 template <typename T>
 MATRIX<T> operator * (const VECTOR<T>& col_vector, const VECTOR<T>& row_vector) {
