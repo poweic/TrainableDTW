@@ -4,6 +4,7 @@
 #include <vector>
 #include <time.h>
 #include <cstdlib>
+#include <map>
 
 #include <matrix.h>
 #include <functional.inl>
@@ -16,6 +17,8 @@ namespace ext {
   void save(const vector<T>& v, string filename) {
     ofstream fs(filename.c_str());
 
+    fs.precision(6);
+    fs << std::scientific;
     foreach (i, v)
       fs << v[i] << endl;
 
@@ -162,6 +165,68 @@ namespace ext {
 	m[i][j] = rand01<T>();
   }
 
+  template <typename T>
+  T max(const std::vector<T>& v) {
+    T maximum = v[0];
+
+    foreach (i, v)
+      if (v[i] > maximum)
+	maximum = v[i];
+    return maximum;
+  }
+
+  template <typename T>
+  void normalize(std::vector<T>& v) {
+    T sum = ext::sum(v);
+    foreach (i, v)
+      v[i] /= sum;
+  }
+
+  template <typename T>
+  vector<size_t> hist(const std::vector<T>& v) {
+
+    T max = ext::max(v);
+
+    vector<size_t> h;
+    std::map<T, size_t> histogram;
+    foreach (i, v) {
+      if ( histogram.count(v[i]) == 0)
+	histogram[v[i]] = 0;
+      ++histogram[v[i]];
+    }
+
+    h.resize(max + 1);
+    foreach (i, h)
+      h[i] = 0;
+
+    typename std::map<T, size_t>::iterator it = histogram.begin();
+    for (; it != histogram.end(); ++it)
+      h[it->first] = it->second;
+    
+    return h;
+  }
+
+  // ===========================
+  // ===== Random Sampling =====
+  // ===========================
+  template <typename T>
+  std::vector<size_t> sampleDataFrom(const std::vector<T>& pdf, size_t nSample) {
+    std::vector<size_t> sampledData(nSample);
+
+    std::map<T, size_t> cdf;
+
+    T cumulation = 0;
+    foreach (i, pdf)
+      cdf[cumulation += pdf[i]] = i;
+
+    foreach (i, sampledData) {
+      float linear = rand01<float>();
+      sampledData[i] = cdf.upper_bound(linear)->second;
+    }
+
+    return sampledData;
+  }
+
   // ===================
   // ===== SoftMax =====
   // ===================
@@ -189,6 +254,16 @@ namespace ext {
     return s;
   }
 
+  template <typename T>
+  Matrix2D<T> sigmoid(const Matrix2D<T>& x) {
+    Matrix2D<T> s(x.getRows(), x.getCols());
+
+    for (size_t i=0; i<x.getRows(); ++i)
+      std::transform(x[i], x[i] + x.getCols(), s[i], func::sigmoid<T>());
+
+    return s;
+  }
+
   // ================================
   // ===== Biased after Sigmoid =====
   // ================================
@@ -199,7 +274,19 @@ namespace ext {
     s.back() = 1.0;
     return s;
   }
-  
+
+  template <typename T>
+  Matrix2D<T> b_sigmoid(const Matrix2D<T>& x) {
+    Matrix2D<T> s(x.getRows(), x.getCols() + 1);
+
+    for (size_t i=0; i<x.getRows(); ++i) {
+      std::transform(x[i], x[i] + x.getCols(), s[i], func::sigmoid<T>());
+      s[i][x.getCols()] = 1.0;
+    }
+
+    return s;
+  }
+
   namespace randomgenerator {
     inline time_t srander() {
       time_t t = time(NULL);

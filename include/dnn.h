@@ -21,8 +21,8 @@
 
 //using namespace std;
 
-// typedef Matrix2D<float> mat; typedef vector<float> vec;
-typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
+typedef Matrix2D<float> mat; typedef vector<float> vec;
+// typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
 
 vec loadvector(string filename);
 
@@ -33,9 +33,14 @@ public:
   DNN(const DNN& source);
   DNN& operator = (DNN rhs);
 
+  void load(string folder);
+
   void randInit();
   void feedForward(const vec& x, STL_VECTOR<vec>* hidden_output);
-  vec backPropagate(vec p, STL_VECTOR<vec>& hidden_output, STL_VECTOR<mat>& gradient);
+  void feedForward(const mat& x, STL_VECTOR<mat>* hidden_output);
+
+  void backPropagate(vec& p, STL_VECTOR<vec>& hidden_output, STL_VECTOR<mat>& gradient);
+  void backPropagate(mat& p, STL_VECTOR<mat>& hidden_output, STL_VECTOR<mat>& gradient, const vec& coeff);
 
   size_t getNLayer() const;
   size_t getDepth() const;
@@ -96,7 +101,7 @@ public:
   Model(const Model& src);
   Model& operator = (Model rhs);
 
-  void load(string filename);
+  void load(string folder);
   void initHiddenOutputAndGradient();
 
   void train(const vec& x, const vec& y);
@@ -139,7 +144,7 @@ GRADIENT operator * (GRADIENT g, float c);
 GRADIENT operator * (float c, GRADIENT g);
 GRADIENT operator / (GRADIENT g, float c);
 
-bool hasNAN(GRADIENT& g);
+//bool hasNAN(GRADIENT& g);
 void print(GRADIENT& g);
 //float sum(GRADIENT& g);
 

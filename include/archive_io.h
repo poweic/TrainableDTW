@@ -16,7 +16,11 @@ using namespace vulcan;
 typedef vector<DoubleVector> FeatureSeq;
 typedef std::pair<size_t, size_t> Phone; 
 
-#define check_equal(a, b) {cout << "Checking equivalence... " << #a << ((a == b) ? GREEN " == " COLOREND : ORANGE " != " COLOREND) << #b << endl;};
+#define check_equal(a, b) { \
+  cout << "Checking equivalence... " \
+  << #a << "(" << a << ")" \
+  << ((a == b) ? GREEN " == " COLOREND : ORANGE " != " COLOREND) \
+  << #b << "(" << b << ")" << endl; };
 
 int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels, bool dump = false);
 size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone> >& phoneLabels, map<size_t, vector<FeatureSeq> >& phoneInstances);

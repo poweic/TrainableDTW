@@ -41,21 +41,27 @@ int main(int argc, char* argv[]) {
 
   vector<string> phones = getPhoneMapping(phoneTableFile);
 
+  printf("Loading alignments and model...\n");
   map<string, vector<Phone> > phoneLabels;
   int nInstance = load(alignmentFile, modelFile, phoneLabels);
+  printf(GREEN"[Done]"COLOREND"\n");
 
   map<size_t, vector<FeatureSeq> > phoneInstances;
 
-  if (featArk.empty())
+  if (featArk.empty()) {
+    printf("No feature archive provided.\n");
     return 0;
+  }
 
+  printf("Loading feature archive...\n");
   int n = loadFeatureArchive(featArk, phoneLabels, phoneInstances);
   check_equal(n, nInstance);
+  printf(GREEN"[Done]"COLOREND"\n");
 
+  printf("Saving feature sequences into files...\n");
   size_t nMfccFiles = saveFeatureAsMFCC(phoneInstances, phones, outputFolder);
   check_equal(nMfccFiles, nInstance);
-
-  cout << "[Done]" << endl;
+  printf(GREEN"[Done]"COLOREND"\n");
 
   return 0;
 }

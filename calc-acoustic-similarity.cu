@@ -6,13 +6,19 @@
 #include <util.h>
 #include <utility.h>
 #include <profile.h>
+#include <trainable_dtw.h>
 
-#include <cdtw.h>
+//#include <cdtw.h>
 
 using namespace DtwUtil;
 using namespace std;
 
-typedef Matrix2D<double> mat;
+
+vector<size_t> theta;
+Model model;
+
+//typedef Matrix2D<double> mat;
+
 void normalize(mat& m, int type = 1);
 double cdtw(DtwParm& q_parm, DtwParm& d_parm);
 void chooseLargestGranularity(const string& path, Array<string>& lists);
@@ -29,7 +35,7 @@ double other_dtw(DtwParm& q_parm, DtwParm& d_parm) {
   dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
   dtwRunner.DTW();
 
-  float max = numeric_limits<float>::lowest();
+  float max = hypo_score[0];
   foreach (i, hypo_bound) {
     if (hypo_score[i] > max)
       max = hypo_score[i];
@@ -39,8 +45,8 @@ double other_dtw(DtwParm& q_parm, DtwParm& d_parm) {
 
 template <typename T>
 std::pair<T, T> getMinMax(const Matrix2D<T>& m) {
-  double min = std::numeric_limits<double>::max();
-  double max = std::numeric_limits<double>::lowest();
+  double min = m[0][0];
+  double max = m[0][0];
 
   size_t rows = m.getRows();
   size_t cols = m.getCols();
@@ -63,11 +69,11 @@ int main (int argc, char* argv[]) {
     .add("-d", "directory containing mfcc files for a certain query")
     .add("-o", "output filename for the acoustic similarity matrix")
     .add("--list", "corresponding list of mfcc files")
-    .add("--dtw-type", {"Choose the type of Dynamic Time Warping: ",
-			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail",
-			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint" , 
-			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW", 
-			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail."})
+    .add("--dtw-type", "Choose the type of Dynamic Time Warping: "
+			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail"
+			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint"
+			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW"
+			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail.")
     .add("--normalize", "Whether to normalize the acoustic similarity to [0, 1]", false, "true");
 
   cmdParser
@@ -81,13 +87,14 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
+  model.load("data/dtwdnn.model/");
   // =====================================================
   string path = cmdParser.find("-d") + "/";
   string mat_filename = cmdParser.find("-o");
   string list_filename = cmdParser.find("--list");
   bool normalization = cmdParser.find("--normalize") == "false" ? false : true;
   string theta_filename = cmdParser.find("--theta");
-  SMIN::eta = stod(cmdParser.find("--eta"));
+  SMIN::eta = str2double(cmdParser.find("--eta"));
 
   Bhattacharyya::setDiagFromFile(theta_filename);
 
@@ -104,17 +111,20 @@ int main (int argc, char* argv[]) {
 
   mat scores(nSegment, nSegment);
 
-  foreach (i, lists) {
+  range (i, nSegment) {
 
-    foreach (j, lists) {
+    range (j, nSegment) {
       if (j > i) break;
+      // cout << "(i, j) = (" << i << ", " << j << ")" << endl;
 
       double score = 0;
       switch (type) {
 	case CDTW:
 	  score = cdtw(parms[i], parms[j]);
+	  // FIXME DtwParm seemed to have illed copy constructor !!!
+	  // score = dtwdnn::dtw(lists[i], lists[j]);
 	  break;
-	case FIXDTW:
+	/*case FIXDTW:
 	  score = other_dtw<FixFrameDtwRunner>(parms[i], parms[j]);
 	  break;
 	case SCDTW:
@@ -123,7 +133,7 @@ int main (int argc, char* argv[]) {
 	case FFDTW:
 	default:
 	  score = other_dtw<FreeFrameDtwRunner>(parms[i], parms[j]);
-	  break;
+	  break;*/
       }
 
       scores[i][j] = scores[j][i] = score;
@@ -137,6 +147,22 @@ int main (int argc, char* argv[]) {
   profile.toc();
 
   return 0;
+}
+
+double cdtw(DtwParm& q_parm, DtwParm& d_parm) {
+  vector<float> hypo_score;
+  vector<pair<int, int> > hypo_bound;
+
+  FrameDtwRunner::nsnippet_ = 10;
+
+  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
+  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+  dtwRunner.DTW();
+
+  //cout << "# frames in q: " << q_parm.NumFrame() << "\t, #frames in d: " << d_parm.NumFrame() << endl;
+
+  double cScoreInLog = dtwRunner.getCumulativeScore();
+  return -cScoreInLog;
 }
 
 DTW_TYPE getDtwType(const string& typeStr) {
@@ -155,7 +181,7 @@ void chooseLargestGranularity(const string& path, Array<string>& lists) {
   // Granularity: word > character > syllable > phone
   foreach (i, lists) {
     for (int j=1; j<50; ++j) {
-      string filename = path + lists[i] + "_" + to_string(j) + ".mfc";
+      string filename = path + lists[i] + "_" + int2str(j) + ".mfc";
       if (exists(filename)) {
 	lists[i] = filename;
 	break;
@@ -165,9 +191,9 @@ void chooseLargestGranularity(const string& path, Array<string>& lists) {
 }
 
 void normalize(mat& m, int type) {
-  auto minmax = getMinMax(m);
-  auto min = minmax.first;
-  auto max = minmax.second;
+  std::pair<float, float> minmax = getMinMax(m);
+  float min = minmax.first;
+  float max = minmax.second;
 
   switch (type) {
     // [min, max] ==> [min - max, 0] ==> [-1, 0] ==> [0, 1]
@@ -190,19 +216,6 @@ void normalize(mat& m, int type) {
   }
 }
 
-double cdtw(DtwParm& q_parm, DtwParm& d_parm) {
-  vector<float> hypo_score;
-  vector<pair<int, int> > hypo_bound;
-
-  FrameDtwRunner::nsnippet_ = 10;
-
-  CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
-  dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-  dtwRunner.DTW();
-
-  double cScoreInLog = dtwRunner.getCumulativeScore();
-  return -cScoreInLog;
-}
 
 // double scdtw(DtwParm& q_parm, DtwParm& d_parm);
 // double ffdtw(DtwParm& q_parm, DtwParm& d_parm);

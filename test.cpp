@@ -9,6 +9,7 @@
 #include <archive_io.h>
 #include <utility.h>
 #include <math_ext.h>
+#include <blas.h>
 
 using namespace std;
 
@@ -28,14 +29,70 @@ namespace golden {
 string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
+  
+  do {
+    size_t n = 3;
+    vector<double> x(n, 0.1);
+    double s = SMIN::eta;
+    LLDouble sum = s * x[0];
+    for (int i = 1; i < n; ++i) {
+      sum = sum + LLDouble(s * x[i]);
+    }
+    cout << sum.getVal() / s << endl;
+    cout << SMIN::eval(0.1, 0.1, 0.1) << endl;
+  } while (false);
 
-  mat m(1000, 1000);
-  ext::randn(m);
 
-  int nInf = 0;
-  range (i, m.getRows())
-    range (j, m.getCols())
-      assert(!ext::is_inf(m[i][j]));
+  return 0;
+
+  for (int i=0; i<1000; ++i) { 
+    if (exp(-(float) i) == 0) {
+      cout << "exp(" << -i << " ) == 0 !!" << endl;
+      break;
+    }
+  }
+
+
+  return 0;
+
+  mat m(4, 6); //("testing/matrix_lib/A.mat");
+  ext::rand(m);
+  m.print(3);
+
+  vector<float> v(m.getRows());
+  foreach (i, v)
+    v[i] = i;
+
+  ::print(v);
+
+  mat s = m & v;
+  s.print(3);
+
+  /* vector<size_t> prior(10);
+  foreach (i, prior)
+    prior[i] = i;
+
+  std::vector<float> pdf(prior.begin(), prior.end());
+  float sum = ext::sum(pdf);
+  foreach (i, pdf)
+    pdf[i] /= sum;
+
+  ::print(pdf);
+
+  vector<size_t> data = ext::sampleDataFrom(pdf, 1000);
+  foreach (i, data)
+    cout << data[i] << " ";
+  cout << endl;*/
+
+  return 0;
+
+  // mat m(1000, 1000);
+  // ext::randn(m);
+
+  // int nInf = 0;
+  // range (i, m.getRows())
+  //   range (j, m.getCols())
+  //     assert(!ext::is_inf(m[i][j]));
 
   //goAll();
 

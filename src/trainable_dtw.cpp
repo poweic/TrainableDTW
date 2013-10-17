@@ -17,40 +17,44 @@ float dnn_fn(const float* x, const float* y, const int size) {
 namespace dtwdnn {
   void validation() {
     Corpus corpus("data/phones.txt");
-    const size_t MINIATURE_SIZE = 1000;
+    const size_t MINIATURE_SIZE = 50;
     vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
 
     cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
 
     perf::Timer timer;
     for (size_t itr=0; itr<10000; ++itr) {
-      printf("iteration "BLUE"#%lu"COLOREND", # of samples = %lu\n", itr, samples.size());
-      timer.start();
-
-      GRADIENT dTheta, ddTheta;
-      model.getEmptyGradient(dTheta);
-      model.getEmptyGradient(ddTheta);
-
-      ProgressBar pbar("Calculating gradients (feed forward + back propagate)");
-      foreach (i, samples) {
-	pbar.refresh(i, samples.size());
-	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
-	if (cscore == float_inf)
-	  continue;
-	bool positive = samples[i].second;
-	dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
-      }
-
-
-      dTheta /= samples.size();
-      model.updateParameters(dTheta);
-
+      printf("iteration "BLUE"#%lu"COLOREND, itr);
+      __train__(samples);
       calcObjective(samples);
       model.save("data/dtwdnn.model/");
-
-      timer.stop();
-      printf("Took "BLUE"%.4f"COLOREND" ms per update\n", timer.getTime() / (itr + 1) );
     }
+  }
+
+  void __train__(const vector<tsample>& samples) {
+    perf::Timer timer;
+    printf("\t# of samples = %lu\n", samples.size());
+    timer.start();
+
+    GRADIENT dTheta, ddTheta;
+    model.getEmptyGradient(dTheta);
+    model.getEmptyGradient(ddTheta);
+
+    ProgressBar pbar("Calculating gradients (feed forward + back propagate)");
+    foreach (i, samples) {
+      pbar.refresh(i, samples.size());
+      auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
+      if (cscore == float_inf)
+	continue;
+      bool positive = samples[i].second;
+      dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
+    }
+
+    dTheta /= samples.size();
+    model.updateParameters(dTheta);
+
+    timer.stop();
+    printf("Took "BLUE"%.4f"COLOREND" ms per update\n", timer.getTime());
   }
 
   void calcObjective(const vector<tsample>& samples) {
@@ -71,43 +75,23 @@ namespace dtwdnn {
 
     Corpus corpus("data/phones.txt");
 
-    if (!corpus.isBatchSizeApprop(batchSize))
-      return;
-
     size_t nBatch = corpus.size() / batchSize;
     cout << "# of batches = " << nBatch << endl;
 
     for (size_t itr=0; itr<nBatch; ++itr) {
       vector<tsample> samples = corpus.getSamples(batchSize);
-      printf("iteration "BLUE"#%lu"COLOREND", # of samples = %lu\n", itr, samples.size());
-
-      GRADIENT dTheta, ddTheta;
-      model.getEmptyGradient(dTheta);
-      model.getEmptyGradient(ddTheta);
-
-      foreach (i, samples) {
-	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
-	if (cscore == float_inf)
-	  continue;
-	bool positive = samples[i].second;
-	dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
-      }
-
-      dTheta /= samples.size();
-      model.updateParameters(dTheta);
-
-      model.save("data/dtwdnn.model/");
+      printf("iteration "BLUE"#%lu"COLOREND, itr);
+      __train__(samples);
+      model.save("data/dtwdnn.model.train/");
     }
 
   }
 
-  double dtw(string f1, string f2, GRADIENT* dTheta) {
+  double dtw(DtwParm& q_parm, DtwParm& d_parm, GRADIENT* dTheta) {
     static vector<float> hypo_score;
     static vector<pair<int, int> > hypo_bound;
     hypo_score.clear(); hypo_bound.clear();
 
-    DtwParm q_parm(f1);
-    DtwParm d_parm(f2);
     FrameDtwRunner::nsnippet_ = 10;
 
     CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(dnn_fn);
@@ -119,6 +103,44 @@ namespace dtwdnn {
 
     return dtwRunner.getCumulativeScore();
   }
+
+  double dtw(string f1, string f2, GRADIENT* dTheta) {
+    /*static vector<float> hypo_score;
+      static vector<pair<int, int> > hypo_bound;
+      hypo_score.clear(); hypo_bound.clear();*/
+
+    DtwParm q_parm(f1);
+    DtwParm d_parm(f2);
+    /*FrameDtwRunner::nsnippet_ = 10;
+
+      CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(dnn_fn);
+      dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+      dtwRunner.DTW();
+
+      if (dTheta != NULL)
+     *dTheta = calcDeltaTheta(&dtwRunner, ::model);
+
+     return dtwRunner.getCumulativeScore(); */
+
+    return dtw(q_parm, d_parm, dTheta);
+  }
+
+  void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr) {
+    vector<size_t> d1(nLayer + 2), d2(nLayer + 2);
+    printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", nLayer, nHiddenNodes);
+
+    size_t bottlenect_dim = 74;
+
+    d1[0] = feat_dim; d1.back() = bottlenect_dim;
+    d2[0] = bottlenect_dim; d2.back() = 1;
+
+    for (size_t i=1; i<d1.size() - 1; ++i)
+      d1[i] = d2[i] = nHiddenNodes;
+
+    model = Model(d1, d2);
+    model.setLearningRate(lr);
+  }
+
 };
 
 GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
@@ -147,30 +169,49 @@ GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
   return g;
 }
 
-
-
 // +========================================================================+
-// +===== DTW with distance metric being 39-dim diagonal Bhattacharyya =====+
+// +===== DTW with distance metric being dtwdiag::dim-dim diagonal Bhattacharyya =====+
 // +========================================================================+
 
-namespace dtwdiag39 {
+namespace dtwdiag {
   double dtw(string f1, string f2, vector<double> *dTheta) {
-    static vector<float> hypo_score;
-    static vector<pair<int, int> > hypo_bound;
-    hypo_score.clear(); hypo_bound.clear();
+    vector<float> hypo_score;
+    vector<pair<int, int> > hypo_bound;
 
     DtwParm q_parm(f1);
     DtwParm d_parm(f2);
     FrameDtwRunner::nsnippet_ = 10;
 
     CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
-    dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+    /*if (d_parm.Feat().LT() < q_parm.Feat().LT()) {
+      dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &d_parm, &q_parm, NULL, NULL);
+    } else {*/
+      dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
+    /*}*/
     dtwRunner.DTW();
 
     if (dTheta != NULL)
       *dTheta = calcDeltaTheta(&dtwRunner);
 
     return dtwRunner.getCumulativeScore();
+  }
+
+  void __train__(const vector<tsample>& samples) {
+      vector<double> dTheta(dtwdiag::dim);
+      vector<double> ddTheta(dtwdiag::dim);
+      foreach (i, samples) {
+	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
+	if (cscore == float_inf)
+	  continue;
+
+	warnNAN(ddTheta[0]);
+
+	bool positive = samples[i].second;
+	dTheta = positive ? (dTheta + ddTheta) : (dTheta - 0.05 * ddTheta);
+      }
+
+      dTheta = dTheta / (double) samples.size();
+      updateTheta(theta, dTheta);
   }
 
   void validation() {
@@ -180,27 +221,24 @@ namespace dtwdiag39 {
 
     cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
 
-    theta.resize(39);
-    fillwith(theta, 1.0);
-
     for (size_t itr=0; itr<10000; ++itr) {
-
-      vector<double> dTheta(39);
-      vector<double> ddTheta(39);
-      foreach (i, samples) {
-	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
-	if (cscore == float_inf)
-	  continue;
-
-	bool positive = samples[i].second;
-	dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
-      }
-
-      dTheta = dTheta / (double) samples.size();
-      updateTheta(theta, dTheta);
-
-      saveTheta();
+      __train__(samples);
       calcObjective(samples);
+      saveTheta(".theta.restore");
+    }
+  }
+
+  void train(size_t batchSize, string theta_output) {
+    Corpus corpus("data/phones.txt");
+
+    size_t nBatch = corpus.size() / batchSize;
+    cout << "# of batches = " << nBatch << endl;
+
+    for (size_t itr=0; itr<nBatch; ++itr) {
+      printf("iteration "BLUE"%8lu"COLOREND"\n", itr);
+      vector<tsample> samples = corpus.getSamples(batchSize);
+      __train__(samples);
+      saveTheta(theta_output);
     }
   }
 
@@ -218,36 +256,6 @@ namespace dtwdiag39 {
     printf("%.8f\n", obj);
   }
 
-
-  void train(size_t batchSize) {
-    Corpus corpus("data/phones.txt");
-
-    if (!corpus.isBatchSizeApprop(batchSize))
-      return;
-
-    size_t nBatch = corpus.size() / batchSize;
-    cout << "# of batches = " << nBatch << endl;
-    for (size_t itr=0; itr<nBatch; ++itr) {
-      vector<tsample> samples = corpus.getSamples(batchSize);
-      printf("iteration "BLUE"%8lu"COLOREND"\n", itr);
-
-      vector<double> dTheta(39);
-      vector<double> dThetaPerSample(39);
-      foreach (i, samples) {
-	auto cscore = dtw(samples[i].first.first, samples[i].first.second, &dThetaPerSample);
-	if (cscore == float_inf)
-	  continue;
-	bool positive = samples[i].second;
-	dTheta = positive ? (dTheta + dThetaPerSample) : (dTheta - dThetaPerSample);
-      }
-
-      dTheta = dTheta / (double) samples.size();
-      updateTheta(theta, dTheta);
-
-      saveTheta();
-    }
-  }
-
   void updateTheta(vector<double>& theta, vector<double>& delta) {
     static double learning_rate = 0.0001;
     double maxNorm = 1;
@@ -260,21 +268,51 @@ namespace dtwdiag39 {
     Bhattacharyya::setDiag(theta);
   }
 
-  void saveTheta() {
-    ext::save(theta, ".theta.restore");
+  void saveTheta(string filename) {
+    ext::save(theta, filename);
+  }
+
+  void initModel(bool resume, size_t feat_dim) {
+    dtwdiag::dim = feat_dim;
+    Bhattacharyya::setFeatureDimension(feat_dim);
+
+    theta.resize(feat_dim);
+    fillwith(theta, 1.0);
+
+    if (resume) {
+      Array<double> previous(".theta.restore");
+      theta = (vector<double>) previous;
+      cout << "Setting theta to previous-trained one" << endl;
+    }
   }
 };
 
+size_t dtwdiag::dim = 39;
+
 vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   DTW_PARAM_ALIASING;
-  if (cScore == 0 || cScore == float_inf)
+
+  // TODO !! returning a vector is not gaurantee to be zero
+  if (cScore == 0 || cScore == float_inf) {
+    //cout << RED"cscore is float_inf"COLOREND << endl;
     return vector<double>(dim);
+  }
 
   vector<double> dTheta(dim);
   fillwith(dTheta, 0.0);
 
   Bhattacharyya gradient;
   size_t WND_SIZE = CumulativeDtwRunner::getWndSize();
+
+  const double MIN_THRES = -105;
+
+  /*bool flag = false;
+  if ( double(dtw->qLength()) / dtw->dLength() > 5 || double(dtw->dLength()) / dtw->qLength() > 5) {
+  //if ( dtw->qLength() > 15 && dtw->dLength() > 15) {
+    cout << RED"Got you"COLOREND << endl;
+    flag = true;
+    doPause();
+  }*/
 
   range(i, dtw->qLength()) {
     range(j, dtw->dLength()) {
@@ -283,14 +321,25 @@ vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
       if ( abs(i - j) > WND_SIZE )
 	continue;
 #endif
-
       const float* qi = Q[i], *dj = D[j];
-      double coeff = alpha(i, j) + beta(i, j) - cScore;
-      coeff = exp(SMIN::eta * coeff);
+      double coeff = SMIN::eta * (alpha(i, j) + beta(i, j) - cScore);
+
+      // if (coeff < MIN_THRES) continue;
+
+      //mylog(alpha(i, j)); mylog(beta(i, j)); mylog(cScore); mylog(coeff);
+      //if (flag) printf("%d ", (int) coeff);
+      coeff = exp(coeff);
+      // mylog(coeff);
+
+      if (coeff != coeff)
+	cout << "coeff is nan" << endl;
 
       dTheta += coeff * gradient(qi, dj);
     }
+    //if (flag) printf("\n");
   }
+
+  //if (flag) { cout << "======================================" << endl; doPause(); }
 
   return dTheta;
 }

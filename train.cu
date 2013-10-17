@@ -17,7 +17,7 @@
 using namespace DtwUtil;
 using namespace std;
 
-void initModel(Model& model, size_t nLayer, size_t nHiddenNodes, float lr);
+void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
 void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile);
 Array<string> getPhoneList(string filename);
 void signalHandler(int param);
@@ -41,10 +41,16 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Training options")
-    .add("--batch-size", "number of training samples per batch", false, "10000")
+    .add("--model", "choose a distance model, either \"dnn\" or \"diag\"", false, "dnn")
+    .add("--batch-size", "number of training samples per batch", false, "1000")
     .add("--resume-training", "resume training using the previous condition", false, "false")
-    .add("--mfcc-root", "root directory of MFCC files", false, "data/mfcc/")
-    .add("--learning-rate", "learning rate", false, "-0.0001");
+    .add("--learning-rate", "learning rate", false, "-0.0001")
+    .add("--theta-output", "choose a file to save theta", false, ".theta.restore");
+
+  cmdParser
+    .addGroup("Training Corpus options:")
+    .add("--feat-dim", "dimension of feature vector (ex: 39 for mfcc)", false, "39")
+    .add("--mfcc-root", "root directory of MFCC files", false, "data/mfcc/");
 
   cmdParser
     .addGroup("Deep Neural Network options:")
@@ -73,6 +79,8 @@ int main (int argc, char* argv[]) {
   size_t N	    = str2int(cmdParser.find("-n"));
   string MFCC_DIR   = cmdParser.find("--mfcc-root");
 
+  SubCorpus::setMfccDirectory(MFCC_DIR);
+
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
   string matFile	  = cmdParser.find("-o");
@@ -83,59 +91,42 @@ int main (int argc, char* argv[]) {
   float lr		  = str2float(cmdParser.find("--learning-rate"));
   size_t nHiddenLayer	  = str2int(cmdParser.find("--layers"));
   size_t nHiddenNodes	  = str2int(cmdParser.find("--hidden-nodes"));
+  string m		  = cmdParser.find("--model");
+  string thetaFilename	  = cmdParser.find("--theta-output");
 
-  theta.resize(39);
-  if (resume) {
-    Array<double> previous(".theta.restore");
-    theta = (vector<double>) previous;
-    cout << "Setting theta to previous-trained one" << endl;
-  }
+  size_t feat_dim	  = str2int(cmdParser.find("--feat-dim"));
 
   Profile profile;
   profile.tic();
 
-  //model.load("data/dtwdnn.model/");
-  initModel(model, nHiddenLayer, nHiddenNodes, lr);
+  if (m == "dnn") {
+    dtwdnn::initModel(model, feat_dim, nHiddenLayer, nHiddenNodes, lr);
 
-  if (phase == "validate") {
-    // dtwdiag39::validation();
-    dtwdnn::validation();
+    if (phase == "validate")
+      dtwdnn::validation();
+    else if (phase == "train")
+      dtwdnn::train(batchSize);
   }
-  else if (phase == "train") {
-    // dtwdiag39::train(batchSize);
-    dtwdnn::train(batchSize);
-  }
-  else if (phase == "evaluate") {
+  else if (m == "diag") {
 
+    dtwdiag::initModel(resume, feat_dim);
+
+    if (phase == "validate")
+      dtwdiag::validation();
+    else if (phase == "train")
+      dtwdiag::train(batchSize, thetaFilename);
   }
 
   profile.toc();
 
-  dtwdiag39::saveTheta();
   return 0;
-}
-
-void initModel(Model& model, size_t nLayer, size_t nHiddenNodes, float lr) {
-  vector<size_t> d1(nLayer + 2), d2(nLayer + 2);
-  printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", nLayer, nHiddenNodes);
-
-  size_t bottlenect_dim = 74;
-
-  d1[0] = 39; d1.back() = bottlenect_dim;
-  d2[0] = bottlenect_dim; d2.back() = 1;
-
-  for (size_t i=1; i<d1.size() - 1; ++i)
-    d1[i] = d2[i] = nHiddenNodes;
-
-  model = Model(d1, d2);
-  model.setLearningRate(lr);
 }
 
 void signalHandler(int param) {
   cout << RED "[Interrupted]" COLOREND << " aborted by user." << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
-  dtwdiag39::saveTheta();
+  //dtwdiag::saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
 
   exit(-1);

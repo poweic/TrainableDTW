@@ -35,7 +35,7 @@ void print(const thrust::device_vector<T>& v, int precision = 4) {
 #define VECTOR thrust::device_vector
 #define MATRIX device_matrix
 
-template <typename T>
+/*template <typename T>
 bool hasNAN(const MATRIX<T>& m) {
   Matrix2D<T> hm(m);
   for (size_t i=0; i < hm.getRows(); ++i )
@@ -52,7 +52,7 @@ bool hasNAN(const VECTOR<T>& v) {
     if (hv[i] != hv[i])
       return true;
   return false;
-}
+}*/
 
 template <typename T>
 MATRIX<T> operator * (const VECTOR<T>& col_vector, const VECTOR<T>& row_vector) {
@@ -127,6 +127,40 @@ VECTOR<T> operator * (const VECTOR<T>& v, const MATRIX<T>& m) {
 #undef VECTOR
 #undef WHERE
 
+#define VECTOR thrust::device_vector
+#define MATRIX device_matrix
+
+template <typename T>
+MATRIX<T> operator & (const VECTOR<T>& v, const MATRIX<T>& m) {
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // FIXME !!!!!!!!!!!!!! THIS IS FUCKING SLOW !!!!!!!!!!!!!!!!! FIXME
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  assert(v.size() == m.getCols());
+  MATRIX<T> result(m);
+
+  size_t rows = m.getRows();
+  size_t cols = m.getCols();
+
+  for (size_t i=0; i<cols; ++i) {
+    thrust::device_ptr<T> ptr(m.getData() + rows * i);
+    thrust::device_ptr<T> ptr2(result.getData() + rows * i);
+
+    VECTOR<T> cv(ptr, ptr + rows);
+    VECTOR<T> cv2(ptr2, ptr2 + rows);
+
+    thrust::transform(
+	m.getData() + rows * i,
+	m.getData() + rows * (i + 1),
+	result.getData() + rows * i,
+	func::ax<T>(v[i]) );
+  }
+
+  return result;
+}
+
+#undef VECTOR
+#undef MATRIX
 // #define VECTOR thrust::device_vector
 // #define WHERE thrust
 // // =====================================

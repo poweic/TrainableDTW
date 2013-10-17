@@ -30,6 +30,7 @@ using namespace std;
 #define mylog(token) {cout << #token " = " << token << endl;}
 
 #define checkNAN(x) assert((x) == (x))
+#define warnNAN(x) { if (x!=x) cout << #x" is NAN" << endl; }
 
 #define __DIVIDER__ "=========================================================="
 

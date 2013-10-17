@@ -74,6 +74,65 @@ vector<T> operator * (const vector<T>& row_vector, const Matrix2D<T>& A) {
 #undef VECTOR
 #undef WHERE
 
+template <typename T>
+void remove_bias(Matrix2D<T>& A) {
+  Matrix2D<T> B(A.getRows(), A.getCols() - 1);
+  range (i, B.getRows())
+    range (j, B.getCols())
+      B[i][j] = A[i][j];
+
+  A = B;
+}
+
+template <typename T>
+Matrix2D<T> add_bias(const Matrix2D<T>& A) {
+  Matrix2D<T> B(A.getRows(), A.getCols() + 1);
+  range (i, B.getRows()) {
+    range (j, B.getCols())
+      B[i][j] = A[i][j];
+    B[i][B.getCols()] = 1;
+  }
+  return B;
+}
+
+template <typename T>
+Matrix2D<T> operator & (const Matrix2D<T>& A, const Matrix2D<T>& B) {
+  assert(A.getRows() == B.getRows() && A.getCols() == B.getCols());
+
+  Matrix2D<T> C(A.getRows(), A.getCols());
+
+  range (i, A.getRows())
+    range (j, A.getCols())
+      C[i][j] = A[i][j] * B[i][j];
+
+  return C;
+}
+
+template <typename T>
+Matrix2D<T> operator & (const Matrix2D<T>& A, const vector<T>& v) {
+  assert(A.getRows() == v.size());
+
+  size_t rows = A.getRows();
+  size_t cols = A.getCols();
+  Matrix2D<T> result(rows, cols);
+  for (size_t i=0; i<rows; ++i)
+    std::transform(A[i], A[i] + cols, result[i], func::ax<T>(v[i]));
+
+  return result;
+}
+
+template <typename T>
+Matrix2D<T> operator - (T c, Matrix2D<T> m) {
+
+  Matrix2D<T> result(m.getRows(), m.getCols());
+
+  range (i, m.getRows())
+    range (j, m.getCols())
+      result[i][j] = c - m[i][j];
+  return result;
+}
+
+// ===================================
 void blas_testing_examples();
 
 #endif // __VECTOR_BLAS_H__

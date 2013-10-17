@@ -6,7 +6,7 @@
 #include <utility.h>
 #include <vector>
 
-#define DTW_SLOPE_CONSTRAINT
+//#define DTW_SLOPE_CONSTRAINT
 
 #ifdef DTW_SLOPE_CONSTRAINT
 #pragma message ORANGE"slope constraint on DTW is enabled."COLOREND
@@ -19,21 +19,33 @@
 #include <perf.h>
 
 float dnn_fn(const float* x, const float* y, const int size);
+
 namespace dtwdnn {
+  double dtw(DtwParm& q_parm, DtwParm& d_parm, GRADIENT* dTheta = NULL);
   double dtw(string f1, string f2, GRADIENT* dTheta = NULL);
+  void __train__(const vector<tsample>& samples);
   void validation();
   void calcObjective(const vector<tsample>& samples);
   void train(size_t batchSize);
+
+  void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
 };
 
-namespace dtwdiag39 {
+namespace dtwdiag {
   double dtw(string f1, string f2, vector<double> *dTheta = NULL);
+
   void validation();
   void calcObjective(const vector<tsample>& samples);
-  void train(size_t batchSize);
+  void train(size_t batchSize, string theta_output);
+  void __train__(const vector<tsample>& samples);
 
   void updateTheta(vector<double>& theta, vector<double>& delta);
-  void saveTheta();
+  void saveTheta(string filename);
+
+  void initModel(bool resume, size_t feat_dim);
+
+  // feature dimension. Ex: dim = 39 for mfcc
+  extern size_t dim;
 };
 
 #define DTW_PARAM_ALIASING \

@@ -51,7 +51,7 @@ size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances,
 
     string ret = exec("mkdir -p " + folder);
 
-    ProgressBar pBar("Saving phone instances for " GREEN + phone + COLOREND "\t...");
+    ProgressBar pBar("Saving phone instances for \t" GREEN + phone + COLOREND "\t...");
     for (size_t i=0; i<fSeqs.size(); ++i) {
       pBar.refresh(double (i+1) / fSeqs.size());
       tmpInst._feature = fSeqs[i];

@@ -142,7 +142,7 @@ void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC
 
 	  string f1 = MFCC_DIR + phone1 + "/" + lists[i][m];
 	  string f2 = MFCC_DIR + phone2 + "/" + lists[j][n];
-	  score[m][n] = dtwdiag39::dtw(f1, f2);
+	  score[m][n] = dtwdiag::dtw(f1, f2);
 	}
       }
 
