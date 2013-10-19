@@ -12,6 +12,7 @@ using namespace DtwUtil;
 #include <math_ext.h>
 
 #define SOFT_POWER 4
+#define NO_HHTT
 
 class SMIN {
 public:
@@ -20,10 +21,8 @@ public:
   template <class T> static double eval(T* x, size_t n) {
     double s = eta;
     LLDouble sum(s * x[0]);
-    for (int i = 1; i < n; ++i) {
+    for (int i = 1; i < n; ++i)
       sum = sum + LLDouble(s * x[i]);
-    }
-    mylog(sum.getVal() / s);
     return sum.getVal() / s;
   }
 };
@@ -44,8 +43,8 @@ class Bhattacharyya {
     static void setDiagFromFile(const string& theta_filename);
     static void setFeatureDimension(size_t dim);
 
-  private:
     static vector<double> _diag;
+  private:
     static size_t _dim;
 };
 

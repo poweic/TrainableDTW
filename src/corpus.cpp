@@ -37,8 +37,6 @@ vector<ppair> SubCorpus::getSamples(size_t n) {
   }
 
   _counter += samples.size();
-  /*if (_p1 == 2 && _p2 == 2)
-    printf("counter = %lu, iStart = %lu, jStart = %lu\n", _counter, iStart, jStart);*/
 
   if (_counter >= _size)
     _counter -= _size;
@@ -85,8 +83,10 @@ Corpus::Corpus(string filename) {
   _size = size;
 
   _prior.resize(_sub_corpus.size());
-  foreach (i, _sub_corpus)
+  foreach (i, _sub_corpus) {
     _prior[i] = _sub_corpus[i].size();
+    //printf("%lu %lu\n", _sub_corpus[i].size(), _sub_corpus[i].isIntraPhone() ? 1 : 0);
+  }
 
   ext::normalize(_prior);
 }

@@ -36,8 +36,8 @@ namespace dtwdiag {
 
   void validation();
   void calcObjective(const vector<tsample>& samples);
-  void train(size_t batchSize, string theta_output);
-  void __train__(const vector<tsample>& samples);
+  void train(size_t batchSize, float intra_inter_weight, string theta_output);
+  void __train__(const vector<tsample>& samples, float intra_inter_weight = 1);
 
   void updateTheta(vector<double>& theta, vector<double>& delta);
   void saveTheta(string filename);

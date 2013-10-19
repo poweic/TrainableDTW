@@ -105,22 +105,9 @@ namespace dtwdnn {
   }
 
   double dtw(string f1, string f2, GRADIENT* dTheta) {
-    /*static vector<float> hypo_score;
-      static vector<pair<int, int> > hypo_bound;
-      hypo_score.clear(); hypo_bound.clear();*/
 
     DtwParm q_parm(f1);
     DtwParm d_parm(f2);
-    /*FrameDtwRunner::nsnippet_ = 10;
-
-      CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(dnn_fn);
-      dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-      dtwRunner.DTW();
-
-      if (dTheta != NULL)
-     *dTheta = calcDeltaTheta(&dtwRunner, ::model);
-
-     return dtwRunner.getCumulativeScore(); */
 
     return dtw(q_parm, d_parm, dTheta);
   }
@@ -145,8 +132,6 @@ namespace dtwdnn {
 
 GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
   DTW_PARAM_ALIASING;
-  // TODO Need to convert GRADIENT from std::tuple to Self-Defined Class
-  // , in order to have a default constructor
   if (cScore == 0 || cScore == float_inf)
     return GRADIENT();
 
@@ -183,11 +168,11 @@ namespace dtwdiag {
     FrameDtwRunner::nsnippet_ = 10;
 
     CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
-    /*if (d_parm.Feat().LT() < q_parm.Feat().LT()) {
+    if (d_parm.Feat().LT() < q_parm.Feat().LT()) {
       dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &d_parm, &q_parm, NULL, NULL);
-    } else {*/
+    } else {
       dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-    /*}*/
+    }
     dtwRunner.DTW();
 
     if (dTheta != NULL)
@@ -196,7 +181,7 @@ namespace dtwdiag {
     return dtwRunner.getCumulativeScore();
   }
 
-  void __train__(const vector<tsample>& samples) {
+  void __train__(const vector<tsample>& samples, float intra_inter_weight) {
       vector<double> dTheta(dtwdiag::dim);
       vector<double> ddTheta(dtwdiag::dim);
       foreach (i, samples) {
@@ -207,7 +192,7 @@ namespace dtwdiag {
 	warnNAN(ddTheta[0]);
 
 	bool positive = samples[i].second;
-	dTheta = positive ? (dTheta + ddTheta) : (dTheta - 0.05 * ddTheta);
+	dTheta = positive ? (dTheta + ddTheta) : (dTheta - intra_inter_weight * ddTheta);
       }
 
       dTheta = dTheta / (double) samples.size();
@@ -228,7 +213,7 @@ namespace dtwdiag {
     }
   }
 
-  void train(size_t batchSize, string theta_output) {
+  void train(size_t batchSize, float intra_inter_weight, string theta_output) {
     Corpus corpus("data/phones.txt");
 
     size_t nBatch = corpus.size() / batchSize;
@@ -237,7 +222,7 @@ namespace dtwdiag {
     for (size_t itr=0; itr<nBatch; ++itr) {
       printf("iteration "BLUE"%8lu"COLOREND"\n", itr);
       vector<tsample> samples = corpus.getSamples(batchSize);
-      __train__(samples);
+      __train__(samples, intra_inter_weight);
       saveTheta(theta_output);
     }
   }
@@ -257,13 +242,15 @@ namespace dtwdiag {
   }
 
   void updateTheta(vector<double>& theta, vector<double>& delta) {
-    static double learning_rate = 0.0001;
+    static double learning_rate = 0.001;
     double maxNorm = 1;
 
     foreach (i, theta)
       theta[i] -= learning_rate*delta[i];
 
-    theta = vmax(0, theta);
+    theta = max(0, theta);
+    theta = min(1, theta);
+    //normalize(theta, 2);
 
     Bhattacharyya::setDiag(theta);
   }
@@ -275,7 +262,10 @@ namespace dtwdiag {
   void initModel(bool resume, size_t feat_dim) {
     dtwdiag::dim = feat_dim;
     Bhattacharyya::setFeatureDimension(feat_dim);
+    Bhattacharyya::_diag.resize(feat_dim);
+    fillwith(Bhattacharyya::_diag, 1.0);
 
+    cout << "feat_dim = " << feat_dim << endl;
     theta.resize(feat_dim);
     fillwith(theta, 1.0);
 
@@ -292,11 +282,8 @@ size_t dtwdiag::dim = 39;
 vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   DTW_PARAM_ALIASING;
 
-  // TODO !! returning a vector is not gaurantee to be zero
-  if (cScore == 0 || cScore == float_inf) {
-    //cout << RED"cscore is float_inf"COLOREND << endl;
+  if (cScore == 0 || cScore == float_inf)
     return vector<double>(dim);
-  }
 
   vector<double> dTheta(dim);
   fillwith(dTheta, 0.0);
@@ -304,15 +291,8 @@ vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   Bhattacharyya gradient;
   size_t WND_SIZE = CumulativeDtwRunner::getWndSize();
 
-  const double MIN_THRES = -105;
-
-  /*bool flag = false;
-  if ( double(dtw->qLength()) / dtw->dLength() > 5 || double(dtw->dLength()) / dtw->qLength() > 5) {
-  //if ( dtw->qLength() > 15 && dtw->dLength() > 15) {
-    cout << RED"Got you"COLOREND << endl;
-    flag = true;
-    doPause();
-  }*/
+  //const double MIN_THRES = -105;
+  const double MIN_THRES = -8;
 
   range(i, dtw->qLength()) {
     range(j, dtw->dLength()) {
@@ -324,22 +304,19 @@ vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
       const float* qi = Q[i], *dj = D[j];
       double coeff = SMIN::eta * (alpha(i, j) + beta(i, j) - cScore);
 
-      // if (coeff < MIN_THRES) continue;
+      if (coeff < MIN_THRES)
+	continue;
 
-      //mylog(alpha(i, j)); mylog(beta(i, j)); mylog(cScore); mylog(coeff);
-      //if (flag) printf("%d ", (int) coeff);
+      //if (exp(coeff) > 1e+20) { mylog(alpha(i, j)); mylog(beta(i, j)); mylog(cScore); mylog(coeff); doPause(); }
+
       coeff = exp(coeff);
-      // mylog(coeff);
 
       if (coeff != coeff)
 	cout << "coeff is nan" << endl;
 
       dTheta += coeff * gradient(qi, dj);
     }
-    //if (flag) printf("\n");
   }
-
-  //if (flag) { cout << "======================================" << endl; doPause(); }
 
   return dTheta;
 }

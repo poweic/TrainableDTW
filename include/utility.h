@@ -60,7 +60,7 @@ void fillwith(vector<T>& v, T val) {
 }
 
 template <typename T, typename S>
-vector<T> vmax(S a, const vector<T>& v) {
+vector<T> max(S a, const vector<T>& v) {
   vector<T> m(v.size());
   foreach (i, m)
     m[i] = MAX(a, v[i]);
@@ -68,7 +68,7 @@ vector<T> vmax(S a, const vector<T>& v) {
 }
 
 template <typename T, typename S>
-vector<T> vmix(S a, const vector<T>& v) {
+vector<T> min(S a, const vector<T>& v) {
   vector<T> m(v.size());
   foreach (i, m)
     m[i] = MIN(a, v[i]);
@@ -85,7 +85,8 @@ T norm(const vector<T>& v) {
 
 template <typename T>
 void normalize(vector<T>& v, int type = 2) {
-  T n = (type == 2) ? norm(v) : vecsum(v);
+  // T n = (type == 2) ? norm(v) : ext::sum(v);
+  T n = norm(v);
   if (n == 0) return;
 
   T normalizer = 1/n;

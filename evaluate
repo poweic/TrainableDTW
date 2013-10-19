@@ -10,8 +10,7 @@ CORPUS=OOV_g2p
 QUERY_LIST=/home/boton/Dropbox/DSP/RandomWalk/source/query/${N_QUERY}.query
 MFCC_DIR=/share/hypothesis/${CORPUS}/
 #QUERY_LIST=remainings
-
-# ============================
+# ============================ 
 # ===== Output Arguments =====
 # ============================
 DTW_TYPE=$1
@@ -94,7 +93,7 @@ BIN_COPY=./.calc-acoustic-similarity.copy
 cp ${BIN} ${BIN_COPY}
 
 addition_arg=$2
-#recalculate_acoustic_similarity
-evaluate
+recalculate_acoustic_similarity
+#evaluate
 
 rm ${BIN_COPY}

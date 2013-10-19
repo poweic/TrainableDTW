@@ -46,11 +46,6 @@ private:
   Array<string> _list2;
 };
 
-/*typedef struct tsample {
-  ppair pair;
-  bool positive;
-} tsample;*/
-
 typedef std::pair<ppair, bool> tsample;
 
 class Corpus: public ICorpus<tsample> {

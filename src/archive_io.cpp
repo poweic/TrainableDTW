@@ -39,8 +39,10 @@ size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone>
 // ***************************************
 // ***** Save Features as MFCC files *****
 // ***************************************
-size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string> &phones, const string& dir) {
+size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string> &phones, string dir) {
   VulcanUtterance tmpInst;
+
+  dir += "/";
 
   size_t nInstanceC = 0;
   for (auto i=phoneInstances.cbegin(); i != phoneInstances.cend(); ++i) {
