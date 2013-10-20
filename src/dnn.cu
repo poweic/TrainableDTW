@@ -11,7 +11,7 @@ vec loadvector(string filename) {
 
 DNN::DNN() {}
 
-DNN::DNN(const vector<size_t>& dims): _dims(dims) {
+DNN::DNN(const STL_VECTOR<size_t>& dims): _dims(dims) {
   _weights.resize(_dims.size() - 1);
 
   foreach (i, _weights) {
@@ -31,6 +31,20 @@ DNN& DNN::operator = (DNN rhs) {
   return *this;
 }
 
+void DNN::load(string prefix) {
+  std::vector<string> n_ppWeights = bash::ls(prefix + "*");
+  _weights.resize(n_ppWeights.size());
+
+  foreach (i, _weights)
+    _weights[i] = mat(prefix + int2str(i));
+
+  _dims.resize(_weights.size() + 1);
+  
+  _dims[0] = _weights[0].getRows() - 1;
+  range (i, _weights.size())
+    _dims[i + 1] = _weights[i].getCols();
+}
+
 size_t DNN::getNLayer() const {
   return _dims.size(); 
 }
@@ -44,7 +58,7 @@ void DNN::print() const {
     _weights[i].print(5);
 }
 
-void DNN::getEmptyGradient(vector<mat>& g) const {
+void DNN::getEmptyGradient(STL_VECTOR<mat>& g) const {
   g.resize(_weights.size());
   foreach (i, _weights) {
     int m = _weights[i].getRows();
@@ -53,63 +67,87 @@ void DNN::getEmptyGradient(vector<mat>& g) const {
   }
 }
 
-vector<mat>& DNN::getWeights() { return _weights; }
-const vector<mat>& DNN::getWeights() const { return _weights; }
-vector<size_t>& DNN::getDims() { return _dims; }
-const vector<size_t>& DNN::getDims() const { return _dims; }
+STL_VECTOR<mat>& DNN::getWeights() { return _weights; }
+const STL_VECTOR<mat>& DNN::getWeights() const { return _weights; }
+STL_VECTOR<size_t>& DNN::getDims() { return _dims; }
+const STL_VECTOR<size_t>& DNN::getDims() const { return _dims; }
 
 void DNN::randInit() {
   foreach (i, _weights)
-    ext::rand(_weights[i]);
+    ext::randn(_weights[i]);
 }
 
 // ========================
 // ===== Feed Forward =====
 // ========================
-void DNN::feedForward(const vec& x, vector<vec>* hidden_output) {
-
-  vector<vec>& O = *hidden_output;
-  //O.resize(_dims.size());
+void DNN::feedForward(const vec& x, STL_VECTOR<vec>* hidden_output) {
+  STL_VECTOR<vec>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
   // Init with one extra element, which is bias
   O[0].resize(x.size() + 1);
-  std::copy(x.begin(), x.end(), O[0].begin());
+  WHERE::copy(x.begin(), x.end(), O[0].begin());
+  O[0][x.size()] = 1;
 
   for (size_t i=1; i<O.size() - 1; ++i)
     O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
 
   size_t end = O.size() - 1;
-  O[end] = ext::sigmoid(O[end - 1] * _weights[end - 1]);
+  O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
+}
+
+void DNN::feedForward(const mat& x, STL_VECTOR<mat>* hidden_output) {
+  STL_VECTOR<mat>& O = *hidden_output;
+  assert(O.size() == _dims.size());
+
+  // TODO add an overloaded function "add_bias" for
+  // both vector and matrix, and this two feedForward
+  // function can then be merged.
+  O[0] = add_bias(x);
+
+  for (size_t i=1; i<O.size() - 1; ++i)
+    O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
+
+  size_t end = O.size() - 1;
+  O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
 }
 
 // ============================
 // ===== Back Propagation =====
 // ============================
-vec DNN::backPropagate(const vec& x, vector<vec>* O, vector<mat>* gradient) {
+void DNN::backPropagate(vec& p, STL_VECTOR<vec>& O, STL_VECTOR<mat>& gradient) {
 
-  assert(gradient->size() == _weights.size());
+  assert(gradient.size() == _weights.size());
 
-  vec p(x);
   reverse_foreach (i, _weights) {
-    (*gradient)[i] = (*O)[i] * p;
-    p = (*O)[i] & ( (float) 1.0 - (*O)[i] ) & (_weights[i] * p);
+    gradient[i] = O[i] * p;
+    p = dsigma(O[i]) & (_weights[i] * p); // & stands for .* in MATLAB
 
     // Remove bias
     p.pop_back();
   }
+}
 
-  return p;
+void DNN::backPropagate(mat& p, STL_VECTOR<mat>& O, STL_VECTOR<mat>& gradient, const vec& coeff) {
+  assert(gradient.size() == _weights.size());
+
+  reverse_foreach (i, _weights) {
+    gradient[i] = O[i] * (p & coeff);
+    p = dsigma(O[i]) & (_weights[i] * p);
+
+    // Remove bias
+    remove_bias(p);
+  }
 }
 
 void swap(DNN& lhs, DNN& rhs) {
-  using std::swap;
+  using WHERE::swap;
   swap(lhs._dims   , rhs._dims   );
   swap(lhs._weights, rhs._weights);
 }
 
 void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs) {
-  using std::swap;
+  using WHERE::swap;
   swap(lhs.hox, rhs.hox);
   swap(lhs.hoy, rhs.hoy);
   swap(lhs.hoz, rhs.hoz);
@@ -117,7 +155,7 @@ void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs) {
 }
 
 void swap(GRADIENT& lhs, GRADIENT& rhs) {
-  using std::swap;
+  using WHERE::swap;
   swap(lhs.grad1, rhs.grad1);
   swap(lhs.grad2, rhs.grad2);
   swap(lhs.grad3, rhs.grad3);
@@ -128,8 +166,8 @@ void swap(GRADIENT& lhs, GRADIENT& rhs) {
 // ===============================
 Model::Model() {}
 
-Model::Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
-  _w = ext::rand<float>(_dtw.getDims()[0]);
+Model::Model(const STL_VECTOR<size_t>& pp_dim, const STL_VECTOR<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
+  _w = ext::randn<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
@@ -170,7 +208,7 @@ float Model::evaluate(const vec& x, const vec& y) {
 
   _dtw.feedForward(Om, &Od);
 
-  float d = Od[Od.size() - 1][0];
+  float d = Od.back()[0];
   return d;
 }
 
@@ -190,8 +228,12 @@ void Model::calcGradient(const vec& x, const vec& y) {
   HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
   GRADIENT_ALIASING(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
   // ==============================================
+
   vec& final_output = Od.back();
-  vec p = _dtw.backPropagate(final_output, &Od, &dtw_gradient);
+
+  vec p = dsigma(final_output);
+  //cout << BLUE << p.back() << COLOREND << endl;
+  _dtw.backPropagate(p, Od, dtw_gradient);
 
   // ==============================================
   middle_gradient = Om & p;
@@ -203,20 +245,20 @@ void Model::calcGradient(const vec& x, const vec& y) {
   py = (py - ext::sum(py & Oy.back()) ) & Oy.back();
 
   // ==============================================
-  _pp.backPropagate(px, &Ox, &ppg1);
-  _pp.backPropagate(py, &Oy, &ppg2);
+  _pp.backPropagate(px, Ox, ppg1);
+  _pp.backPropagate(py, Oy, ppg2);
 }
 
 void Model::updateParameters(GRADIENT& g) {
   GRADIENT_ALIASING(g, ppg1, ppg2, mg, dtwg);
 
-  vector<mat>& ppw = _pp.getWeights();
+  STL_VECTOR<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i] += _lr * (ppg1[i] + ppg2[i]); 
+    ppw[i] += _lr * (ppg1[i] + ppg2[i]);
 
-  this->_w += _lr * mg;
+  this->_w += _lr * mg * 1e7;
 
-  vector<mat>& dtww = _dtw.getWeights();
+  STL_VECTOR<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i] += _lr * dtwg[i];
 }
@@ -246,29 +288,27 @@ void Model::getEmptyGradient(GRADIENT& g) {
 
 void Model::load(string folder) {
   folder += "/";
-  
-  vector<mat>& ppw = _pp.getWeights();
-  foreach (i, ppw)
-    ppw[i] = mat(folder + "pp.w." + int2str(i));
 
+  _pp.load(folder + "pp.w.");
+  
   ext::load<float>(this->_w, folder + "m.w");
 
-  vector<mat>& dtww = _dtw.getWeights();
-  foreach (i, dtww)
-    dtww[i] = mat(folder + "dtw.w." + int2str(i));
+  _dtw.load(folder + "dtw.w.");
+
+  this->initHiddenOutputAndGradient();
 }
 
 void Model::save(string folder) const {
 
   folder += "/";
   
-  const vector<mat>& ppw = _pp.getWeights();
+  const STL_VECTOR<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
     ppw[i].saveas(folder + "pp.w." + int2str(i));
 
   ext::save(this->_w, folder + "m.w");
 
-  const vector<mat>& dtww = _dtw.getWeights();
+  const STL_VECTOR<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i].saveas(folder + "dtw.w." + int2str(i));
 }
@@ -280,7 +320,7 @@ void Model::print() const {
 }
 
 void swap(Model& lhs, Model& rhs) {
-  using std::swap;
+  using WHERE::swap;
   swap(lhs.hidden_output, rhs.hidden_output);
   swap(lhs.gradient, rhs.gradient);
   swap(lhs._lr , rhs._lr );
@@ -323,10 +363,10 @@ GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2) {
 GRADIENT& operator *= (GRADIENT& g, float c) {
   GRADIENT_ALIASING(g, g1, g2, g3, g4);
 
-  foreach (i, g1) g1[i] *= c;
-  foreach (i, g2) g2[i] *= c;
-  g3 *= c;
-  foreach (i, g4) g4[i] *= c;
+  foreach (i, g1) { g1[i] *= c; /*debug(ext::sum(g1[i]));*/ }
+  foreach (i, g2) { g2[i] *= c; /*debug(ext::sum(g2[i]));*/ }
+  g3 *= c; /*debug(ext::sum(g3));*/
+  foreach (i, g4) { g4[i] *= c; /*debug(ext::sum(g4[i]));*/ }
 
   return g;
 }
@@ -340,6 +380,25 @@ GRADIENT operator - (GRADIENT g1, GRADIENT& g2) { return (g1 -= g2); }
 GRADIENT operator * (GRADIENT g, float c) { return (g *= c); }
 GRADIENT operator * (float c, GRADIENT g) { return (g *= c); }
 GRADIENT operator / (GRADIENT g, float c) { return (g /= c); }
+
+/*bool hasNAN(GRADIENT& g) {
+  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  
+  foreach (i, g1)
+    if (hasNAN(g1[i]))
+      return true;
+
+  foreach (i, g2)
+    if (hasNAN(g2[i]))
+      return true;
+
+  if (hasNAN(g3))
+    return true;
+
+  foreach (i, g4)
+    if (hasNAN(g4[i]))
+      return true;
+}*/
 
 void print(GRADIENT& g) {
   GRADIENT_ALIASING(g, g1, g2, g3, g4);
@@ -356,3 +415,16 @@ void print(GRADIENT& g) {
   foreach (i, g4)
     g4[i].print();
 }
+
+/*float sum(GRADIENT& g) {
+  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+
+  float s = 0;
+
+  foreach (i, g1) s += ext::sum(g1[i]);
+  foreach (i, g2) s += ext::sum(g2[i]);
+  s += ext::sum(g3);
+  foreach (i, g4) s += ext::sum(g4[i]);
+
+  return s;
+}*/

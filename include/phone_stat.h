@@ -14,4 +14,8 @@ double objective(const Matrix2D<double>& scores);
 Matrix2D<double> statistics (const Array<string>& phones);
 void deduceCompetitivePhones(const Array<string>& phones, const Matrix2D<double>& scores);
 
+void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile);
+
+Array<string> getPhoneList(string filename);
+
 #endif // __PHONE_STAT_H_

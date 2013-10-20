@@ -7,31 +7,86 @@
 
 #include <cdtw.h>
 #include <archive_io.h>
-//#include <dnn.h>
 #include <utility.h>
+#include <math_ext.h>
+#include <blas.h>
+#include <perf.h>
+
+#include <fast_dtw.h>
 
 using namespace std;
-
 typedef Matrix2D<float> mat;
 
 void goAll();
 mat fast(const Array<string>& files);
 
-void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& phoneInstances);
-
 namespace golden {
-  mat go(const Array<string>& files);
+  //mat go(const Array<string>& files);
   double dtw(string q_fname, string d_fname);
   double dtw(const DtwParm& X, const DtwParm& Y);
 };
+
+void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& phoneInstances);
 
 string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
 
-  goAll();
+  perf::Timer timer;
+  timer.start();
 
-  Array<string> files("test.list");
+  string fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
+  int M = 500;
+  int N = 500;
+  //float** scores = computePairwiseDTW(fn);
+  timer.stop();
+
+  printf("Elasped time: %.2f \n", timer.getTime());
+
+  return 0;
+
+  mat m(4, 6); //("testing/matrix_lib/A.mat");
+  ext::rand(m);
+  m.print(3);
+
+  vector<float> v(m.getRows());
+  foreach (i, v)
+    v[i] = i;
+
+  ::print(v);
+
+  mat s = m & v;
+  s.print(3);
+
+  /* vector<size_t> prior(10);
+  foreach (i, prior)
+    prior[i] = i;
+
+  std::vector<float> pdf(prior.begin(), prior.end());
+  float sum = ext::sum(pdf);
+  foreach (i, pdf)
+    pdf[i] /= sum;
+
+  ::print(pdf);
+
+  vector<size_t> data = ext::sampleDataFrom(pdf, 1000);
+  foreach (i, data)
+    cout << data[i] << " ";
+  cout << endl;*/
+
+  return 0;
+
+  // mat m(1000, 1000);
+  // ext::randn(m);
+
+  // int nInf = 0;
+  // range (i, m.getRows())
+  //   range (j, m.getCols())
+  //     assert(!ext::is_inf(m[i][j]));
+
+  //goAll();
+
+  //Array<string> files("test.list");
   //mat s1 = fast(files);
   //mat s2 = golden::go(files);
 
@@ -136,7 +191,7 @@ mat fast(const Array<string>& files) {
 }
 
 namespace golden {
-  mat go(const Array<string>& files) {
+  /*mat go(const Array<string>& files) {
     int N = files.size();
     mat score(N, N);
 
@@ -158,14 +213,7 @@ namespace golden {
     printf("average time calculating a DTW pair = %.8e, %lu in total\n", avgTime, nPairs);
 
     return score;
-  }
-
-  double dtw(string q_fname, string d_fname) {
-    DtwParm q_parm(q_fname);
-    DtwParm d_parm(d_fname);
-
-    return dtw(q_parm, d_parm);
-  }
+  }*/
 
   double dtw(const DtwParm& X, const DtwParm& Y) {
     static vector<float> hypo_score;
@@ -182,4 +230,13 @@ namespace golden {
 
   }
 
+  double dtw(string q_fname, string d_fname) {
+    DtwParm q_parm(q_fname);
+    DtwParm d_parm(d_fname);
+
+    return dtw(q_parm, d_parm);
+  }
 };
+
+
+

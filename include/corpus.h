@@ -16,7 +16,7 @@ protected:
   size_t _size;
 };
 
-typedef pair<string, string> ppair;
+typedef std::pair<string, string> ppair;
 
 class SubCorpus : public ICorpus<ppair> {
 public:
@@ -26,20 +26,22 @@ public:
 
   bool isIntraPhone() const;
 
-  static const string LIST_DIRECTORY;
-  static const string MFCC_DIRECTORY;
+  static void setListDirectory(const string& list_directory);
+  static void setMfccDirectory(const string& mfcc_directory);
 
+  static string LIST_DIRECTORY;
+  static string MFCC_DIRECTORY;
+
+  size_t _p1;
+  size_t _p2;
+  string _phone1;
+  string _phone2;
 private:
   SubCorpus();
 
   void _init();
 
   size_t _counter;
-
-  size_t _p1;
-  size_t _p2;
-  string _phone1;
-  string _phone2;
   Array<string> _list1;
   Array<string> _list2;
 };
@@ -59,6 +61,7 @@ public:
 private:
   Array<string> _phones;
   vector<SubCorpus> _sub_corpus;
+  vector<float> _prior;
 };
 
 #endif // __CORPUS_H_

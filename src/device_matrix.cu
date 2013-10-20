@@ -1,4 +1,7 @@
 #include <device_matrix.h>
+#define mylog(token) {cout << #token " = " << token << endl;}
+#include <blas.h>
+#include <device_blas.h>
 
 template <typename T>
 device_matrix<T>::device_matrix(): _rows(0), _cols(0), _data(NULL) { }
@@ -176,6 +179,7 @@ void device_matrix<T>::resize(size_t r, size_t c) {
   _rows = r;
   _cols = c;
   _init();
+  fillwith(0);
 }
 
 template <typename T>
@@ -221,7 +225,7 @@ void sgemm(const dmat& A, const dmat& B, dmat& C, float alpha, float beta) {
 }
 
 void sgeam(const dmat& A, const dmat& B, dmat& C, float alpha, float beta) {
-  // Perform C = αA*B + βC, not transpose on A and B
+  // Perform C = αA + βB, not transpose on A and B
   assert(A._rows == B._rows && A._cols == B._cols);
   
   size_t m = A._rows;

@@ -30,6 +30,7 @@ using namespace std;
 #define mylog(token) {cout << #token " = " << token << endl;}
 
 #define checkNAN(x) assert((x) == (x))
+#define warnNAN(x) { if (x!=x) cout << #x" is NAN" << endl; }
 
 #define __DIVIDER__ "=========================================================="
 
@@ -59,7 +60,7 @@ void fillwith(vector<T>& v, T val) {
 }
 
 template <typename T, typename S>
-vector<T> vmax(S a, const vector<T>& v) {
+vector<T> max(S a, const vector<T>& v) {
   vector<T> m(v.size());
   foreach (i, m)
     m[i] = MAX(a, v[i]);
@@ -67,7 +68,7 @@ vector<T> vmax(S a, const vector<T>& v) {
 }
 
 template <typename T, typename S>
-vector<T> vmix(S a, const vector<T>& v) {
+vector<T> min(S a, const vector<T>& v) {
   vector<T> m(v.size());
   foreach (i, m)
     m[i] = MIN(a, v[i]);
@@ -84,7 +85,8 @@ T norm(const vector<T>& v) {
 
 template <typename T>
 void normalize(vector<T>& v, int type = 2) {
-  T n = (type == 2) ? norm(v) : vecsum(v);
+  // T n = (type == 2) ? norm(v) : ext::sum(v);
+  T n = norm(v);
   if (n == 0) return;
 
   T normalizer = 1/n;
@@ -93,7 +95,7 @@ void normalize(vector<T>& v, int type = 2) {
 }
 
 template <typename T>
-void print(const vector<T>& v, size_t n_digits = 6) {
+void print(const vector<T>& v, size_t n_digits = 3) {
 
   string format = "%." + int2str(n_digits) + "f ";
   printf("[");
@@ -132,6 +134,8 @@ vector<vector<T> > split(const vector<T>& v, const vector<size_t>& lengths) {
 template <typename T> int sign(T val) {
   return (T(0) < val) - (val < T(0));
 }
+
+void doPause();
 
 std::string exec(std::string cmd);
 namespace bash {

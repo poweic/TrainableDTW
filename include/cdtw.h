@@ -12,11 +12,19 @@ using namespace DtwUtil;
 #include <math_ext.h>
 
 #define SOFT_POWER 4
+//#define NO_HHTT
 
 class SMIN {
 public:
   static double eta;
   inline static double eval(double x, double y, double z);
+  template <class T> static double eval(T* x, size_t n) {
+    double s = eta;
+    LLDouble sum(s * x[0]);
+    for (int i = 1; i < n; ++i)
+      sum = sum + LLDouble(s * x[i]);
+    return sum.getVal() / s;
+  }
 };
 
 inline double sigmoid(double x);
@@ -33,10 +41,11 @@ class Bhattacharyya {
     static void setDiag(const vector<double>& d);
     static float fn(const float* a, const float* b, const int size);
     static void setDiagFromFile(const string& theta_filename);
+    static void setFeatureDimension(size_t dim);
 
-  private:
     static vector<double> _diag;
-    static const size_t DIM_DEFAULT = 39;
+  private:
+    static size_t _dim;
 };
 
 typedef TwoDimArray<float> Table;
@@ -48,7 +57,7 @@ namespace DtwUtil {
       CumulativeDtwRunner(VectorDistFn norm) : FrameDtwRunner(norm) {}
       inline double getAlphaBeta(int i, int j) ;
 
-      void DTW();
+      void DTW(bool scoreOnly = false);
       void calcBeta();
       void calcAlpha();
 
@@ -70,7 +79,7 @@ namespace DtwUtil {
       const DenseFeature& getD() const { return this->dparm_->Feat(); }
       double getCumulativeScore() const { return _cScore; }
 
-      static unsigned nsnippet_;
+      static size_t getWndSize() { return wndSize_; }
       static void setWndSize(size_t wndSize) { wndSize_ = wndSize; }
 
       double _cScore;

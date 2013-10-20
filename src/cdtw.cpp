@@ -18,8 +18,11 @@ inline double d_sigmoid(double x) {
   double s = sigmoid(x);
   return s * (1 - s);
 }
+
 // ====================================================================
-vector<double> Bhattacharyya::_diag(Bhattacharyya::DIM_DEFAULT, 1.0);
+size_t Bhattacharyya::_dim = 39;
+
+vector<double> Bhattacharyya::_diag(Bhattacharyya::_dim, 1.0);
 
 void Bhattacharyya::setDiag(const vector<double>& d) {
   Bhattacharyya::_diag = d;
@@ -29,38 +32,51 @@ vector<double>& Bhattacharyya::getDiag() {
   return Bhattacharyya::_diag;
 }
 
-void Bhattacharyya::setDiagFromFile(const string& theta_filename) {
-  if (theta_filename.empty())
+void Bhattacharyya::setDiagFromFile(const string& filename) {
+  if (filename.empty())
     return;
 
   vector<double> diag;
-  //ext::load<double>(diag, theta_filename);
+  ext::load<double>(diag, filename);
   Bhattacharyya::setDiag(diag);
 }
 
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 
+  /*for (int i = 0; i < size; ++i)
+    ret += exp(a[i] + b[i]) * Bhattacharyya::_diag[i];
+  ret = -log(ret);
+  return ret;*/
+
   for (int i = 0; i < size; ++i)
     ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
     //ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
   ret = sqrt(ret);
 
-  /*float ret_0 = 0.0;
-  for (int i = 0; i < size; ++i)
-    ret_0 += pow(a[i] - b[i], 2);
-  ret_0 = sqrt(ret_0);
-
-  printf("%.4f\t%.4f\n", ret_0, ret);*/
-
   return ret;
 }
 
-vector<double> Bhattacharyya::operator() (cvec x, cvec y) const {
-  vector<double> partial(DIM_DEFAULT);
+vector<double> Bhattacharyya::operator() (const float* x, const float* y) const {
+  vector<double> partial(_dim);
+
+  float d = Bhattacharyya::fn(x, y, _dim);
+
+  if (d == 0)
+    return partial;
+
   foreach (i, partial)
-    partial[i] = pow(x[i] - y[i], 2); // * d_sigmoid(Bhattacharyya::_diag[k]);
+    partial[i] = -exp(d + x[i] + y[i]);
   return partial;
+
+  float c = (float) 1.0 / d / 2;
+  foreach (i, partial)
+    partial[i] = pow(x[i] - y[i], 2) * c; // * d_sigmoid(Bhattacharyya::_diag[k]);
+  return partial;
+}
+
+void Bhattacharyya::setFeatureDimension(size_t dim) {
+  Bhattacharyya::_dim = dim;
 }
 
 // ====================================================================
@@ -68,7 +84,7 @@ vector<double> Bhattacharyya::operator() (cvec x, cvec y) const {
 
 namespace DtwUtil {
   
-  void CumulativeDtwRunner::DTW() {
+  void CumulativeDtwRunner::DTW(bool scoreOnly) {
     //FrameDtwRunner::DTW();
     // =========================================================
     qstart_ = qbound_ ? qbound_->first : 0;
@@ -84,8 +100,23 @@ namespace DtwUtil {
     // =========================================================
 
     this->calcAlpha();
-    this->calcBeta();
+#ifndef NO_HHTT
     this->_cScore = score_(qL_ - 1, dL_ - 1);
+#else
+    this->_cScore = SMIN::eval(score_[qL_ - 1], dL_);
+#endif
+
+    if (scoreOnly)
+      return;
+
+    //cout << _cScore << endl;
+#ifdef DTW_SLOPE_CONSTRAINT
+    if (this->_cScore == float_inf)
+      return;
+#endif
+    this->calcBeta();
+
+>>>>>>> feature/slope-constraint-dtw
   }
 
   void CumulativeDtwRunner::calcBeta() {
@@ -94,16 +125,18 @@ namespace DtwUtil {
     beta_.Resize(qL_, dL_);
     beta_.Memfill(float_inf);
 
-    // q == qL_ - 1, d == dL_ - 1
     int q = qL_ - 1, d = dL_ - 1;
-    beta_(q, d) = 0;
-
-    // q == qL_ - 1
-    q = qL_ - 1;
+#ifndef NO_HHTT
+    beta_(qL_ - 1, dL_ -1) = 0;
+    q = qL_ -1;
     for (d = dL_ - 2; d >= 0; --d)
       beta_(q, d) = beta_(q, d + 1) + pdist(q, d + 1);
+#else
+    q = qL_ -1;
+    for (d = 0; d < dL_; ++d)
+      beta_(q, d) = 0;
+#endif
 
-    // d == dL_ - 1
     d = dL_ - 1;
     for (q = qL_ - 2; q >= 0; --q)
       beta_(q, d) = beta_(q + 1, d) + pdist(q + 1, d);
@@ -111,6 +144,13 @@ namespace DtwUtil {
     // interior points
     for (int d = dL_ - 2; d >= 0; --d) {
       for (int q = qL_ - 2; q >= 0; --q) {
+#ifndef NO_HHTT
+#ifdef DTW_SLOPE_CONSTRAINT
+	if ( abs(q - d) > wndSize_ )
+	  continue;
+#endif
+#endif
+
 	double s1 = beta_(q  , d+1) + pdist(q  , d+1),
 	       s2 = beta_(q+1, d  ) + pdist(q+1, d  ),
 	       s3 = beta_(q+1, d+1) + pdist(q+1, d+1);
@@ -132,44 +172,31 @@ namespace DtwUtil {
     score_(0, 0) = pdist(0, 0);
 
     // q == 0
-    for (int d = 1; d < dL_; ++d) {
+    for (int d = 1; d < dL_; ++d)
+#ifndef NO_HHTT
       score_(0, d) = score_(0, d - 1) + pdist(0, d);
-      /*root_(0, d) = d;
-      if (paths_) lastL_(0, d) = IPair(1, 1);*/
-    }
+#else
+      score_(0, d) = pdist(0, d);
+#endif
 
     // d == 0
-    for (int q = 1; q < qL_; ++q) {
+    for (int q = 1; q < qL_; ++q)
       score_(q, 0) = score_(q - 1, 0) + pdist(q, 0);
-      /*root_(q, 0) = 0;
-      if (paths_) lastL_(q, 0) = IPair(q + 1, 1);*/
-    }
 
     // interior points
     for (int d = 1; d < dL_; ++d) {
       for (int q = 1; q < qL_; ++q) {
-
-        /*// (-1, -1)
-        root_(q, d) = root_(q - 1, d - 1);
-        if (paths_) lastL_(q, d) = IPair(1, 1);
-
-        // (-1, 0)
-        if (score_(q - 1, d) < score_(q, d)) {
-          root_(q, d) = root_(q - 1, d);
-          if (paths_) lastL_(q, d) = IPair(lastL_(q - 1, d).first + 1, 1);
-        }
-
-        // (0, -1)
-        if (score_(q, d - 1) < score_(q, d)) {
-          root_(q, d) = root_(q, d - 1);
-          if (paths_) lastL_(q, d) = IPair(1, lastL_(q, d - 1).second + 1);
-        } */
+#ifdef DTW_SLOPE_CONSTRAINT
+	if ( abs(q - d) > wndSize_ )
+	  continue;
+#endif
 
 	double s1 = score_(q  , d-1),
 	       s2 = score_(q-1, d  ),
 	       s3 = score_(q-1, d-1);
 
 	double s = SMIN::eval(s1, s2, s3) + pdist(q, d);
+
 	score_(q, d) = s;
       }
     }

@@ -1,5 +1,6 @@
 #include <blas.h>
 
+/*
 void blas_testing_examples() {
 
   vector<float> x(4);
@@ -79,4 +80,4 @@ void blas_testing_examples() {
   vector<float> zx_y = zx * y;
   print(zx_y);
 }
-
+*/

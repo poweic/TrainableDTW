@@ -22,6 +22,9 @@ int main (int argc, char* argv[]) {
   ext::load(x, "data/test.vx");
   ext::load(y, "data/test.vy");
 
+  //vec sigmoid_x = ext::b_sigmoid(x); ::print(x); ::print(sigmoid_x);
+  vec dsigma_x = dsigma(x); ::print(x, 6);   ::print(dsigma_x, 6);
+
   int M = 74;
   int WIDTH = 512;
   vector<size_t> d1(5), d2(5);

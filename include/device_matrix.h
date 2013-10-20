@@ -150,14 +150,6 @@ device_matrix<T> operator * (T alpha, const device_matrix<T>& m) {
 }
 
 template <typename T>
-T matsum(const device_matrix<T>& A) {
-  int N = A.size();
-  thrust::device_ptr<T> ptr(A.getData());
-  float sum = thrust::reduce(ptr, ptr + N, (T) 0, thrust::plus<T>());
-  return sum;
-}
-
-template <typename T>
 T L1_NORM(const device_matrix<T>& A, const device_matrix<T>& B) {
   return matsum(A - B);
 }

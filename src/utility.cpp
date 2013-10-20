@@ -1,10 +1,5 @@
 #include <utility.h>
 
-/*void pause() {
-  char c;
-  cin >> c;
-}*/
-
 string int2str(int n) {
   char buf[32];
   sprintf(buf, "%d", n);
@@ -80,6 +75,12 @@ std::string exec(std::string cmd) {
 
   pclose(pipe);
   return result;
+}
+
+void doPause() {
+  cout << "Press "BLUE"[ Enter ]"COLOREND" to continue...";
+  cin.clear(); 
+  cin.ignore();
 }
 
 namespace bash {

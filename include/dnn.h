@@ -3,79 +3,92 @@
 
 #include <blas.h>
 #include <device_blas.h>
+#include <device_math_ext.h>
 
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-using namespace std;
+
+#ifndef __CUDACC__
+#define WHERE std
+#else
+#define WHERE thrust
+#endif
+
+#define dsigma(x) ((x) & ((float) 1.0 - (x)))
+#define STL_VECTOR std::vector
+
+//using namespace std;
 
 typedef Matrix2D<float> mat; typedef vector<float> vec;
 // typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
-
-// typedef std::tuple<vector<vec>, vector<vec>, vec, vector<vec> > HIDDEN_OUTPUT;
-// typedef std::tuple<vector<mat>, vector<mat>, vec, vector<mat> > GRADIENT;
 
 vec loadvector(string filename);
 
 class DNN {
 public:
   DNN();
-  DNN(const vector<size_t>& dims);
+  DNN(const STL_VECTOR<size_t>& dims);
   DNN(const DNN& source);
   DNN& operator = (DNN rhs);
 
+  void load(string folder);
+
   void randInit();
-  void feedForward(const vec& x, vector<vec>* hidden_output);
-  vec backPropagate(const vec& x, vector<vec>* hidden_output, vector<mat>* gradient);
+  void feedForward(const vec& x, STL_VECTOR<vec>* hidden_output);
+  void feedForward(const mat& x, STL_VECTOR<mat>* hidden_output);
+
+  void backPropagate(vec& p, STL_VECTOR<vec>& hidden_output, STL_VECTOR<mat>& gradient);
+  void backPropagate(mat& p, STL_VECTOR<mat>& hidden_output, STL_VECTOR<mat>& gradient, const vec& coeff);
 
   size_t getNLayer() const;
   size_t getDepth() const;
-  void getEmptyGradient(vector<mat>& g) const;
+  void getEmptyGradient(STL_VECTOR<mat>& g) const;
   void print() const;
 
-  vector<mat>& getWeights();
-  const vector<mat>& getWeights() const;
-  vector<size_t>& getDims();
-  const vector<size_t>& getDims() const;
+  STL_VECTOR<mat>& getWeights();
+  const STL_VECTOR<mat>& getWeights() const;
+  STL_VECTOR<size_t>& getDims();
+  const STL_VECTOR<size_t>& getDims() const;
 
   friend void swap(DNN& lhs, DNN& rhs);
 
 private:
-  vector<size_t> _dims;
-  vector<mat> _weights;
+  STL_VECTOR<size_t> _dims;
+  STL_VECTOR<mat> _weights;
 };
 
 void swap(DNN& lhs, DNN& rhs);
 
 #define HIDDEN_OUTPUT_ALIASING(O, x, y, z, w) \
-vector<vec>& x	= O.hox; \
-vector<vec>& y	= O.hoy; \
+STL_VECTOR<vec>& x	= O.hox; \
+STL_VECTOR<vec>& y	= O.hoy; \
 vec& z		= O.hoz; \
-vector<vec>& w	= O.hod;
+STL_VECTOR<vec>& w	= O.hod;
 
 #define GRADIENT_ALIASING(g, g1, g2, g3, g4) \
-vector<mat>& g1	= g.grad1; \
-vector<mat>& g2 = g.grad2; \
+STL_VECTOR<mat>& g1	= g.grad1; \
+STL_VECTOR<mat>& g2 = g.grad2; \
 vec& g3		= g.grad3; \
-vector<mat>& g4 = g.grad4;
+STL_VECTOR<mat>& g4 = g.grad4;
 
 class HIDDEN_OUTPUT {
   public:
-    vector<vec> hox;
-    vector<vec> hoy;
+    STL_VECTOR<vec> hox;
+    STL_VECTOR<vec> hoy;
     vec hoz;
-    vector<vec> hod;
+    STL_VECTOR<vec> hod;
 };
 
 void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs);
 
 class GRADIENT {
   public:
-    vector<mat> grad1;
-    vector<mat> grad2;
+    STL_VECTOR<mat> grad1;
+    STL_VECTOR<mat> grad2;
     vec grad3;
-    vector<mat> grad4;
+    STL_VECTOR<mat> grad4;
 };
 
 void swap(GRADIENT& lhs, GRADIENT& rhs);
@@ -84,11 +97,11 @@ class Model {
 public:
 
   Model();
-  Model(const vector<size_t>& pp_dim, const vector<size_t>& dtw_dim);
+  Model(const STL_VECTOR<size_t>& pp_dim, const STL_VECTOR<size_t>& dtw_dim);
   Model(const Model& src);
   Model& operator = (Model rhs);
 
-  void load(string filename);
+  void load(string folder);
   void initHiddenOutputAndGradient();
 
   void train(const vec& x, const vec& y);
@@ -131,6 +144,8 @@ GRADIENT operator * (GRADIENT g, float c);
 GRADIENT operator * (float c, GRADIENT g);
 GRADIENT operator / (GRADIENT g, float c);
 
+//bool hasNAN(GRADIENT& g);
 void print(GRADIENT& g);
+//float sum(GRADIENT& g);
 
 #endif  // __DNN_H_
