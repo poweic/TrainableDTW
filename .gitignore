@@ -15,3 +15,5 @@ tags
 log*
 theta*
 calc-acoustic-similarity-fast
+kaldi-to-htk
+pair-wise-dtw

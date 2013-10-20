@@ -27,9 +27,9 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp fast_dtw.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
-EXECUTABLES=train extract kaldi-to-htk calc-acoustic-similarity calc-acoustic-similarity-fast #$(EXAMPLE_PROGRAM) test 
+EXECUTABLES=train extract kaldi-to-htk calc-acoustic-similarity pair-wise-dtw #$(EXAMPLE_PROGRAM) test 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -89,8 +89,10 @@ test: $(OBJ) test.cpp
 
 calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cu obj/trainable_dtw.o 
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_OBJ) $(CU_LIB)
-calc-acoustic-similarity-fast: $(OBJ) calc-acoustic-similarity-fast.cpp
-	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
+
+pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
+	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
