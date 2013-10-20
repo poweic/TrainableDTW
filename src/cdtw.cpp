@@ -116,7 +116,6 @@ namespace DtwUtil {
 #endif
     this->calcBeta();
 
->>>>>>> feature/slope-constraint-dtw
   }
 
   void CumulativeDtwRunner::calcBeta() {
@@ -186,6 +185,7 @@ namespace DtwUtil {
     // interior points
     for (int d = 1; d < dL_; ++d) {
       for (int q = 1; q < qL_; ++q) {
+
 #ifdef DTW_SLOPE_CONSTRAINT
 	if ( abs(q - d) > wndSize_ )
 	  continue;
