@@ -10,48 +10,38 @@
 #include <utility.h>
 #include <math_ext.h>
 #include <blas.h>
+#include <perf.h>
+
+#include <fast_dtw.h>
 
 using namespace std;
-
 typedef Matrix2D<float> mat;
 
 void goAll();
 mat fast(const Array<string>& files);
 
-void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& phoneInstances);
-
 namespace golden {
-  mat go(const Array<string>& files);
+  //mat go(const Array<string>& files);
   double dtw(string q_fname, string d_fname);
   double dtw(const DtwParm& X, const DtwParm& Y);
 };
 
+void run(const vector<string>& phones, const map<size_t, vector<FeatureSeq> >& phoneInstances);
+
 string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
-  
-  do {
-    size_t n = 3;
-    vector<double> x(n, 0.1);
-    double s = SMIN::eta;
-    LLDouble sum = s * x[0];
-    for (int i = 1; i < n; ++i) {
-      sum = sum + LLDouble(s * x[i]);
-    }
-    cout << sum.getVal() / s << endl;
-    cout << SMIN::eval(0.1, 0.1, 0.1) << endl;
-  } while (false);
 
+  perf::Timer timer;
+  timer.start();
 
-  return 0;
+  string fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
+  int M = 500;
+  int N = 500;
+  //float** scores = computePairwiseDTW(fn);
+  timer.stop();
 
-  for (int i=0; i<1000; ++i) { 
-    if (exp(-(float) i) == 0) {
-      cout << "exp(" << -i << " ) == 0 !!" << endl;
-      break;
-    }
-  }
-
+  printf("Elasped time: %.2f \n", timer.getTime());
 
   return 0;
 
@@ -201,7 +191,7 @@ mat fast(const Array<string>& files) {
 }
 
 namespace golden {
-  mat go(const Array<string>& files) {
+  /*mat go(const Array<string>& files) {
     int N = files.size();
     mat score(N, N);
 
@@ -223,14 +213,7 @@ namespace golden {
     printf("average time calculating a DTW pair = %.8e, %lu in total\n", avgTime, nPairs);
 
     return score;
-  }
-
-  double dtw(string q_fname, string d_fname) {
-    DtwParm q_parm(q_fname);
-    DtwParm d_parm(d_fname);
-
-    return dtw(q_parm, d_parm);
-  }
+  }*/
 
   double dtw(const DtwParm& X, const DtwParm& Y) {
     static vector<float> hypo_score;
@@ -247,4 +230,13 @@ namespace golden {
 
   }
 
+  double dtw(string q_fname, string d_fname) {
+    DtwParm q_parm(q_fname);
+    DtwParm d_parm(d_fname);
+
+    return dtw(q_parm, d_parm);
+  }
 };
+
+
+

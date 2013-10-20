@@ -44,10 +44,10 @@ void Bhattacharyya::setDiagFromFile(const string& filename) {
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 
-  for (int i = 0; i < size; ++i)
+  /*for (int i = 0; i < size; ++i)
     ret += exp(a[i] + b[i]) * Bhattacharyya::_diag[i];
   ret = -log(ret);
-  return ret;
+  return ret;*/
 
   for (int i = 0; i < size; ++i)
     ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
@@ -84,7 +84,7 @@ void Bhattacharyya::setFeatureDimension(size_t dim) {
 
 namespace DtwUtil {
   
-  void CumulativeDtwRunner::DTW() {
+  void CumulativeDtwRunner::DTW(bool scoreOnly) {
     /*if ( qL_ > 65536 || dL_ > 65536 )
       cout << RED"qL_ = " << qL_ << ", dL_ = " << dL_ << COLOREND<< endl;*/
     
@@ -108,6 +108,9 @@ namespace DtwUtil {
 #else
     this->_cScore = SMIN::eval(score_[qL_ - 1], dL_);
 #endif
+
+    if (scoreOnly)
+      return;
 
     //cout << _cScore << endl;
 #ifdef DTW_SLOPE_CONSTRAINT

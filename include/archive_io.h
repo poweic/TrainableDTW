@@ -24,6 +24,8 @@ typedef std::pair<size_t, size_t> Phone;
 
 int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels, bool dump = false);
 size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone> >& phoneLabels, map<size_t, vector<FeatureSeq> >& phoneInstances);
+
+void save(const FeatureSeq& featureSeq, const string& filename);
 size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string>& phones, string dir);
 
 vector<string> getPhoneMapping(string filename);

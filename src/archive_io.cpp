@@ -39,9 +39,14 @@ size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone>
 // ***************************************
 // ***** Save Features as MFCC files *****
 // ***************************************
-size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string> &phones, string dir) {
-  VulcanUtterance tmpInst;
 
+void save(const FeatureSeq& featureSeq, const string& filename) {
+  VulcanUtterance tmpInst;
+  tmpInst._feature = featureSeq;
+  tmpInst.SaveHtk(filename, false);
+}
+
+size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string> &phones, string dir) {
   dir += "/";
 
   size_t nInstanceC = 0;
@@ -56,8 +61,7 @@ size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances,
     ProgressBar pBar("Saving phone instances for \t" GREEN + phone + COLOREND "\t...");
     for (size_t i=0; i<fSeqs.size(); ++i) {
       pBar.refresh(double (i+1) / fSeqs.size());
-      tmpInst._feature = fSeqs[i];
-      tmpInst.SaveHtk(folder + "/" + int2str(i) + ".mfc", false);
+      save(fSeqs[i], folder + "/" + int2str(i) + ".mfc");
     }
     nInstanceC += fSeqs.size();
   }

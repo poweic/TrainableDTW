@@ -1,99 +1,38 @@
 #!/bin/bash
-
-# ===========================
-# ===== Input Arguments =====
-# ===========================
-# CORPUS=SI_word
-# QUERY_LIST=/home/boton/Lattice/data/275.query
-N_QUERY=110
-CORPUS=OOV_g2p
-QUERY_LIST=/home/boton/Dropbox/DSP/RandomWalk/source/query/${N_QUERY}.query
-MFCC_DIR=/share/hypothesis/${CORPUS}/
-#QUERY_LIST=remainings
-# ============================ 
-# ===== Output Arguments =====
-# ============================
-DTW_TYPE=$1
-PRE_DIR=/share/preparsed_files
-DIR=$PRE_DIR/${CORPUS}_${DTW_TYPE}
-MULSIM_DIR=${DIR}/mul-sim
-LIST_DIR=${DIR}/seglist
-printf "Type of Dynamic Time Warping: \33[32m${DTW_TYPE}\33[0m\n"
-printf "Output Directory for mul-sim: \33[32m${MULSIM_DIR}\33[0m\n"
+source ./arg_reader.sh
 
 if [ ! -d $DIR ]; then
-  cp -r $PRE_DIR/${CORPUS} $DIR
-  rm -r $MULSIM_DIR/*
+  printf "\33[31m Directory $DIR not exists \33[0m \n"
+  exit -1
 fi
-
-if [ "$DTW_TYPE" == "dtw" ]; then
-  dtw_options="--dtw-type=fixdtw"
-elif [ "$DTW_TYPE" == "cdtw" ]; then
-  dtw_options="--dtw-type=cdtw"
-else
-  # printf "\33[31m[Error]\33[0m Choose a type of DTW, either \"dtw\" or \"cdtw\".\n"; exit -1
-  dtw_options="--dtw-type=cdtw"
-fi
-
-printf "Using option \"\33[34m$dtw_options\33[0m\"\n"
 
 # ===================
 # ===== Program =====
 # ===================
-source ../bash_lib/parallel.sh
 
-function recalculate_acoustic_similarity() {
-  IFS=$'\r\n'
-  QUERIES=($(cat $QUERY_LIST))
-
-  printf "\33[33m[Info]\33[0m # of query: ${#QUERIES[@]}\n"
-  parallelize "recalcAS" ${QUERIES[@]}
-}
-
-function evaluate() {
+function rerank() {
   dir=/home/boton/Dropbox/DSP/RandomWalk/source/
   exp=exp/
   program=$dir/out
   config="-q $dir/query/${N_QUERY}.query -a $dir/query/${N_QUERY}.ans -d ${DIR}"
+  tmp_logfile=.log
   start=0.02
   step=0.02
   end=1
 
   method=graph
-  log=$exp/$DTW_TYPE.map
+  log=$exp/$EXP_SET.map
   printf "" > $log
   printf "Evaluating using Graph-based Re-ranking [=>"
   for p in `seq $start $step $end`; do
     printf "\b=>"
     printf "$p\t" >> $log
-    $program $config -o .log -p $p --method=$method >> $log
-    #echo $program $config -o .log -p $p --method=$method 
+    $program $config -o $tmp_logfile -p $p --method=$method >> $log
+    #echo $program $config -o $tmp_logfile -p $p --method=$method 
   done
   printf "\b=] \33[32m[Done]\33[0m\n"
 
   methods=prf
 }
 
-function recalcAS() {
-  shopt -s extglob
-  query=$1
-  query="${query%%*( )}"
-  dir=$MFCC_DIR"/"$query
-  mat="$MULSIM_DIR/$query.mul-sim"
-  list="$LIST_DIR/$query.lst"
-
-  printf "Processing query: \33[34m%s\33[0m\n" ${query}
-  ${BIN_COPY} -d $dir -o $mat $dtw_options --list=$list ${addition_arg}
-  #echo "pid: $!"
-  shopt -u extglob
-}
-
-BIN=./calc-acoustic-similarity 
-BIN_COPY=./.calc-acoustic-similarity.copy
-cp ${BIN} ${BIN_COPY}
-
-addition_arg=$2
-recalculate_acoustic_similarity
-#evaluate
-
-rm ${BIN_COPY}
+rerank

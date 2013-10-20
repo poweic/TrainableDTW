@@ -12,7 +12,7 @@ using namespace DtwUtil;
 #include <math_ext.h>
 
 #define SOFT_POWER 4
-#define NO_HHTT
+//#define NO_HHTT
 
 class SMIN {
 public:
@@ -57,7 +57,7 @@ namespace DtwUtil {
       CumulativeDtwRunner(VectorDistFn norm) : FrameDtwRunner(norm) {}
       inline double getAlphaBeta(int i, int j) ;
 
-      void DTW();
+      void DTW(bool scoreOnly = false);
       void calcBeta();
       void calcAlpha();
 

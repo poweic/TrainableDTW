@@ -1,0 +1,41 @@
+#!/bin/bash
+source ./arg_reader.sh
+
+if [ ! -d $DIR ]; then
+  cp -r $PRE_DIR/${CORPUS} $DIR
+  rm -rf $MULSIM_DIR/*
+fi
+
+# ===================
+# ===== Program =====
+# ===================
+source ../bash_lib/parallel.sh
+
+function recalcAcousticSimilarity() {
+
+  IFS=$'\r\n'
+  QUERIES=($(cat $QUERY_LIST))
+
+  printf "\33[33m[Info]\33[0m # of query: ${#QUERIES[@]}\n"
+  #for q in ${QUERIES[@]}; do
+  #  echo $q
+  #  recalcAS $q
+  #done
+  parallelize "recalcAS" ${QUERIES[@]}
+}
+
+function recalcAS() {
+  shopt -s extglob
+  query=$1
+  query="${query%%*( )}"
+  dir=$MFCC_DIR"/"$query
+  mat="$MULSIM_DIR/$query.mul-sim"
+  list="$LIST_DIR/$query.lst"
+
+  printf "Processing query: \33[34m%s\33[0m\n" ${query}
+
+  ./calc-acoustic-similarity -d $dir -o $mat $dtw_options --list=$list ${AdditionalArgs[@]}
+
+  shopt -u extglob
+}
+recalcAcousticSimilarity

@@ -27,9 +27,9 @@ INCLUDE= -I include/ \
 
 CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
+SOURCES=utility.cpp fast_dtw.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
-EXECUTABLES=train extract calc-acoustic-similarity #$(EXAMPLE_PROGRAM) test 
+EXECUTABLES=train extract kaldi-to-htk calc-acoustic-similarity calc-acoustic-similarity-fast #$(EXAMPLE_PROGRAM) test 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -75,25 +75,31 @@ CU_LIB=-lcuda -lcublas
 
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
+kaldi-to-htk: $(OBJ) kaldi-to-htk.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 #train: $(OBJ) train.cpp obj/trainable_dtw.o obj/phone_stat.o
 	#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
 #calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp obj/trainable_dtw.o 
-	#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
 calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cu obj/trainable_dtw.o 
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_OBJ) $(CU_LIB)
+calc-acoustic-similarity-fast: $(OBJ) calc-acoustic-similarity-fast.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
 #dnn_example: $(OBJ) dnn_example.cu dnn.h $(CU_OBJ)
-	#$(NVCC) -w $(CFLAGS) $(INCLUDE) -o $@ $< $(CU_OBJ) $@.cu $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+#$(NVCC) -w $(CFLAGS) $(INCLUDE) -o $@ $< $(CU_OBJ) $@.cu $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 #thrust_example: $(OBJ) thrust_example.cu obj/device_matrix.o 
-	#$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+#$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 #-L$(RTK_UTIL_ROOT)/lib -lrtk 
 ctags:
 	@ctags -R *

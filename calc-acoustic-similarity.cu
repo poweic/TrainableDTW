@@ -19,8 +19,10 @@ Model model;
 
 //typedef Matrix2D<double> mat;
 
+void dumpMfccAsKaldiArk(const Array<string>& lists);
 void normalize(mat& m, int type = 1);
-double cdtw(DtwParm& q_parm, DtwParm& d_parm);
+// double cdtw(DtwParm& q_parm, DtwParm& d_parm);
+double cdtw(const string& f1, const string& f2);
 void chooseLargestGranularity(const string& path, Array<string>& lists);
 enum DTW_TYPE { FIXDTW, FFDTW, SCDTW, CDTW };
 DTW_TYPE getDtwType(const string& typeStr);
@@ -69,10 +71,10 @@ int main (int argc, char* argv[]) {
     .add("-d", "directory containing mfcc files for a certain query")
     .add("-o", "output filename for the acoustic similarity matrix")
     .add("--list", "corresponding list of mfcc files")
-    .add("--dtw-type", "Choose the type of Dynamic Time Warping: "
-			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail"
-			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint"
-			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW"
+    .add("--dtw-type", "Choose the type of Dynamic Time Warping: \n"
+			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail\n"
+			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint\n"
+			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW\n"
 			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail.")
     .add("--normalize", "Whether to normalize the acoustic similarity to [0, 1]", false, "true");
 
@@ -103,6 +105,9 @@ int main (int argc, char* argv[]) {
   Array<string> lists(list_filename);
   chooseLargestGranularity(path, lists);
 
+  // dumpMfccAsKaldiArk(lists);
+  // return 0;
+
   int nSegment = lists.size();
 
   vector<DtwParm> parms;
@@ -120,7 +125,7 @@ int main (int argc, char* argv[]) {
       double score = 0;
       switch (type) {
 	case CDTW:
-	  score = cdtw(parms[i], parms[j]);
+	  score = cdtw(lists[i], lists[j]);
 	  // FIXME DtwParm seemed to have illed copy constructor !!!
 	  // score = dtwdnn::dtw(lists[i], lists[j]);
 	  break;
@@ -149,17 +154,39 @@ int main (int argc, char* argv[]) {
   return 0;
 }
 
-double cdtw(DtwParm& q_parm, DtwParm& d_parm) {
+void dumpMfccAsKaldiArk(const Array<string>& lists) {
+
+  foreach (i, lists) {
+    cout << lists[i] << "  [" << endl;
+
+    DtwParm p(lists[i]);
+    size_t feat_dim = p.Feat().LF();
+    size_t totalTime = p.Feat().LT();
+    for (int t=0; t<totalTime; ++t) {
+      cout << "  ";
+
+      for (int d=0; d<feat_dim; ++d)
+	cout << p.Feat()[t][d] << " ";
+
+      if (t != totalTime - 1)
+	cout << endl;
+      else
+	cout << "]" << endl;
+    }
+  }
+}
+
+double cdtw(const string& f1, const string& f2) {
   vector<float> hypo_score;
   vector<pair<int, int> > hypo_bound;
 
   FrameDtwRunner::nsnippet_ = 10;
 
+  DtwParm q_parm(f1);
+  DtwParm d_parm(f2);
   CumulativeDtwRunner dtwRunner = CumulativeDtwRunner(Bhattacharyya::fn);
   dtwRunner.InitDtw(&hypo_score, &hypo_bound, NULL, &q_parm, &d_parm, NULL, NULL);
-  dtwRunner.DTW();
-
-  //cout << "# frames in q: " << q_parm.NumFrame() << "\t, #frames in d: " << d_parm.NumFrame() << endl;
+  dtwRunner.DTW(true);
 
   double cScoreInLog = dtwRunner.getCumulativeScore();
   return -cScoreInLog;
@@ -181,7 +208,7 @@ void chooseLargestGranularity(const string& path, Array<string>& lists) {
   // Granularity: word > character > syllable > phone
   foreach (i, lists) {
     for (int j=1; j<50; ++j) {
-      string filename = path + lists[i] + "_" + int2str(j) + ".mfc";
+      string filename = path + lists[i] + "_" + int2str(j) + ".gp";
       if (exists(filename)) {
 	lists[i] = filename;
 	break;
