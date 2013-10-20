@@ -36,6 +36,41 @@ size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone>
   return nInstance;
 }
 
+void loadFeatureArchive(string filename, float* &data, unsigned int* &offset, int& N, int& dim) {
+
+  vector<FeatureSeq> featureSeqs;
+
+  FILE* fptr = fopen(filename.c_str(), "r");
+  vulcan::VulcanUtterance vUtterance;
+  while (vUtterance.LoadKaldi(fptr))
+    featureSeqs.push_back(vUtterance._feature);
+  fclose(fptr);
+
+  N = featureSeqs.size();
+  dim = featureSeqs[0][0].size();
+
+  offset = new unsigned int[N + 1];
+  offset[0] = 0;
+  for (size_t i=1; i<N+1; ++i) {
+    size_t prevLength = featureSeqs[i-1].size();
+    offset[i] = offset[i-1] + prevLength * dim;
+  }
+
+  size_t totalLength = offset[N];
+  data = new float[totalLength];
+
+  range (i, N) { 
+    unsigned int begin = offset[i];
+    unsigned int  end  = offset[i+1];
+    float* d = &data[begin];
+    int length = (end - begin) / dim;
+
+    range (j, length)
+      range (k, dim)
+	d[j * dim + k] = featureSeqs[i][j]._data->data[k]; 
+  }
+}
+
 // ***************************************
 // ***** Save Features as MFCC files *****
 // ***************************************
