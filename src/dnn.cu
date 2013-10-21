@@ -226,7 +226,7 @@ void Model::calcGradient(const float* x, const float* y) {
 void Model::calcGradient(const vec& x, const vec& y) {
 
   HIDDEN_OUTPUT_ALIASING(hidden_output, Ox, Oy, Om, Od);
-  GRADIENT_ALIASING(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
+  GRADIENT_REF(gradient, ppg1, ppg2, middle_gradient, dtw_gradient);
   // ==============================================
 
   vec& final_output = Od.back();
@@ -250,7 +250,7 @@ void Model::calcGradient(const vec& x, const vec& y) {
 }
 
 void Model::updateParameters(GRADIENT& g) {
-  GRADIENT_ALIASING(g, ppg1, ppg2, mg, dtwg);
+  GRADIENT_REF(g, ppg1, ppg2, mg, dtwg);
 
   STL_VECTOR<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
@@ -276,7 +276,7 @@ GRADIENT& Model::getGradient() {
 }
 
 void Model::getEmptyGradient(GRADIENT& g) {
-  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  GRADIENT_REF(g, g1, g2, g3, g4);
 
   _pp.getEmptyGradient(g1);
   _pp.getEmptyGradient(g2);
@@ -330,9 +330,9 @@ void swap(Model& lhs, Model& rhs) {
 }
 
 
-GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
-  GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);
-  GRADIENT_ALIASING(g2, g2_1, g2_2, g2_3, g2_4);
+GRADIENT& operator += (GRADIENT& g1, const GRADIENT& g2) {
+  GRADIENT_REF(g1, g1_1, g1_2, g1_3, g1_4);
+  GRADIENT_CONST_REF(g2, g2_1, g2_2, g2_3, g2_4);
 
   foreach (i, g1_1)
     g1_1[i] += g2_1[i];
@@ -348,9 +348,9 @@ GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2) {
   return g1;
 }
 
-GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2) {
-  GRADIENT_ALIASING(g1, g1_1, g1_2, g1_3, g1_4);
-  GRADIENT_ALIASING(g2, g2_1, g2_2, g2_3, g2_4);
+GRADIENT& operator -= (GRADIENT& g1, const GRADIENT& g2) {
+  GRADIENT_REF(g1, g1_1, g1_2, g1_3, g1_4);
+  GRADIENT_CONST_REF(g2, g2_1, g2_2, g2_3, g2_4);
 
   foreach (i, g1_1) g1_1[i] -= g2_1[i];
   foreach (i, g1_2) g1_2[i] -= g2_2[i];
@@ -361,7 +361,7 @@ GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2) {
 }
 
 GRADIENT& operator *= (GRADIENT& g, float c) {
-  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  GRADIENT_REF(g, g1, g2, g3, g4);
 
   foreach (i, g1) { g1[i] *= c; /*debug(ext::sum(g1[i]));*/ }
   foreach (i, g2) { g2[i] *= c; /*debug(ext::sum(g2[i]));*/ }
@@ -375,14 +375,14 @@ GRADIENT& operator /= (GRADIENT& g, float c) {
   return (g *= (float) 1.0 / c);
 }
 
-GRADIENT operator + (GRADIENT g1, GRADIENT& g2) { return (g1 += g2); }
-GRADIENT operator - (GRADIENT g1, GRADIENT& g2) { return (g1 -= g2); }
+GRADIENT operator + (GRADIENT g1, const GRADIENT& g2) { return (g1 += g2); }
+GRADIENT operator - (GRADIENT g1, const GRADIENT& g2) { return (g1 -= g2); }
 GRADIENT operator * (GRADIENT g, float c) { return (g *= c); }
 GRADIENT operator * (float c, GRADIENT g) { return (g *= c); }
 GRADIENT operator / (GRADIENT g, float c) { return (g /= c); }
 
 /*bool hasNAN(GRADIENT& g) {
-  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  GRADIENT_REF(g, g1, g2, g3, g4);
   
   foreach (i, g1)
     if (hasNAN(g1[i]))
@@ -401,7 +401,7 @@ GRADIENT operator / (GRADIENT g, float c) { return (g /= c); }
 }*/
 
 void print(GRADIENT& g) {
-  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  GRADIENT_REF(g, g1, g2, g3, g4);
   
   foreach (i, g1)
     g1[i].print();
@@ -417,7 +417,7 @@ void print(GRADIENT& g) {
 }
 
 /*float sum(GRADIENT& g) {
-  GRADIENT_ALIASING(g, g1, g2, g3, g4);
+  GRADIENT_REF(g, g1, g2, g3, g4);
 
   float s = 0;
 

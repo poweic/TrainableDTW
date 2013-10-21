@@ -67,11 +67,17 @@ STL_VECTOR<vec>& y	= O.hoy; \
 vec& z		= O.hoz; \
 STL_VECTOR<vec>& w	= O.hod;
 
-#define GRADIENT_ALIASING(g, g1, g2, g3, g4) \
+#define GRADIENT_REF(g, g1, g2, g3, g4) \
 STL_VECTOR<mat>& g1	= g.grad1; \
 STL_VECTOR<mat>& g2 = g.grad2; \
 vec& g3		= g.grad3; \
 STL_VECTOR<mat>& g4 = g.grad4;
+
+#define GRADIENT_CONST_REF(g, g1, g2, g3, g4) \
+const STL_VECTOR<mat>& g1	= g.grad1; \
+const STL_VECTOR<mat>& g2 = g.grad2; \
+const vec& g3		= g.grad3; \
+const STL_VECTOR<mat>& g4 = g.grad4;
 
 class HIDDEN_OUTPUT {
   public:
@@ -133,13 +139,13 @@ private:
 
 void swap(Model& lhs, Model& rhs);
 
-GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
-GRADIENT& operator -= (GRADIENT& g1, GRADIENT& g2);
+GRADIENT& operator += (GRADIENT& g1, const GRADIENT& g2);
+GRADIENT& operator -= (GRADIENT& g1, const GRADIENT& g2);
 GRADIENT& operator *= (GRADIENT& g, float c);
 GRADIENT& operator /= (GRADIENT& g, float c);
 
-GRADIENT operator + (GRADIENT g1, GRADIENT& g2);
-GRADIENT operator - (GRADIENT g1, GRADIENT& g2);
+GRADIENT operator + (GRADIENT g1, const GRADIENT& g2);
+GRADIENT operator - (GRADIENT g1, const GRADIENT& g2);
 GRADIENT operator * (GRADIENT g, float c);
 GRADIENT operator * (float c, GRADIENT g);
 GRADIENT operator / (GRADIENT g, float c);

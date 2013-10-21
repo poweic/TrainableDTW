@@ -1,11 +1,10 @@
 #include <trainable_dtw.h>
 #include <pbar.h>
 
-extern Model model;
 extern vector<double> theta;
 
 float dnn_fn(const float* x, const float* y, const int size) {
-  float s = model.evaluate(x, y);
+  float s = dtwdnn::getInstance().evaluate(x, y);
   return s;
 }
 
@@ -25,7 +24,7 @@ void dtwdnn::validation() {
     printf("iteration "BLUE"#%lu"COLOREND, itr);
     __train__(samples);
     calcObjective(samples);
-    model.save("data/dtwdnn.model/");
+    getInstance().save(_model_output_path);
   }
 }
 
@@ -34,6 +33,7 @@ void dtwdnn::__train__(const vector<tsample>& samples) {
   printf("\t# of samples = %lu\n", samples.size());
   timer.start();
 
+  Model &model = getInstance();
   GRADIENT dTheta, ddTheta;
   model.getEmptyGradient(dTheta);
   model.getEmptyGradient(ddTheta);
@@ -41,11 +41,13 @@ void dtwdnn::__train__(const vector<tsample>& samples) {
   ProgressBar pbar("Calculating gradients (feed forward + back propagate)");
   foreach (i, samples) {
     pbar.refresh(i, samples.size());
+
     auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
     if (cscore == float_inf)
       continue;
+
     bool positive = samples[i].second;
-    dTheta = positive ? (dTheta + ddTheta) : (dTheta - ddTheta);
+    dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
   }
 
   dTheta /= samples.size();
@@ -80,7 +82,7 @@ void dtwdnn::train(size_t batchSize) {
     vector<tsample> samples = corpus.getSamples(batchSize);
     printf("iteration "BLUE"#%lu"COLOREND, itr);
     __train__(samples);
-    model.save("data/dtwdnn.model.train/");
+    getInstance().save(_model_output_path);
   }
 
 }
@@ -97,7 +99,7 @@ double dtwdnn::dtw(DtwParm& q_parm, DtwParm& d_parm, GRADIENT* dTheta) {
   dtwRunner.DTW();
 
   if (dTheta != NULL)
-    *dTheta = calcDeltaTheta(&dtwRunner, ::model);
+    *dTheta = calcDeltaTheta(&dtwRunner);
 
   return dtwRunner.getCumulativeScore();
 }
@@ -110,28 +112,29 @@ double dtwdnn::dtw(string f1, string f2, GRADIENT* dTheta) {
   return dtw(q_parm, d_parm, dTheta);
 }
 
-void dtwdnn::initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr) {
-  vector<size_t> d1(nLayer + 2), d2(nLayer + 2);
-  printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", nLayer, nHiddenNodes);
+void dtwdnn::initModel() {
+  vector<size_t> d1(_nHiddenLayer + 2), d2(_nHiddenLayer + 2);
+  printf("# of hidden layer = %lu, # of node per hidden layer = %lu\n", _nHiddenLayer, _nHiddenNodes);
 
   size_t bottlenect_dim = 74;
 
-  d1[0] = feat_dim; d1.back() = bottlenect_dim;
+  d1[0] = _dim; d1.back() = bottlenect_dim;
   d2[0] = bottlenect_dim; d2.back() = 1;
 
   for (size_t i=1; i<d1.size() - 1; ++i)
-    d1[i] = d2[i] = nHiddenNodes;
+    d1[i] = d2[i] = _nHiddenNodes;
 
-  model = Model(d1, d2);
-  model.setLearningRate(lr);
+  getInstance() = Model(d1, d2);
+  getInstance().setLearningRate(_learning_rate);
 }
 
-GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model) {
+GRADIENT dtwdnn::calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   DTW_PARAM_ALIASING;
   if (cScore == 0 || cScore == float_inf)
     return GRADIENT();
 
   GRADIENT g;
+  Model& model = dtwdnn::getInstance();
   model.getEmptyGradient(g);
 
   range(i, dtw->qLength()) {
@@ -177,9 +180,10 @@ double dtwdiag::dtw(string f1, string f2, vector<double> *dTheta) {
   return dtwRunner.getCumulativeScore();
 }
 
-void dtwdiag::__train__(const vector<tsample>& samples, float intra_inter_weight) {
-  vector<double> dTheta(dim);
-  vector<double> ddTheta(dim);
+void dtwdiag::__train__(const vector<tsample>& samples) {
+  vector<double> dTheta(_dim);
+  vector<double> ddTheta(_dim);
+
   foreach (i, samples) {
     auto cscore = dtw(samples[i].first.first, samples[i].first.second, &ddTheta);
     if (cscore == float_inf)
@@ -188,7 +192,7 @@ void dtwdiag::__train__(const vector<tsample>& samples, float intra_inter_weight
     warnNAN(ddTheta[0]);
 
     bool positive = samples[i].second;
-    dTheta = positive ? (dTheta + ddTheta) : (dTheta - intra_inter_weight * ddTheta);
+    dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
   }
 
   dTheta = dTheta / (double) samples.size();
@@ -205,11 +209,11 @@ void dtwdiag::validation() {
   for (size_t itr=0; itr<10000; ++itr) {
     __train__(samples);
     calcObjective(samples);
-    saveTheta(".theta.restore");
+    saveTheta(_model_output_path);
   }
 }
 
-void dtwdiag::train(size_t batchSize, float intra_inter_weight, string theta_output) {
+void dtwdiag::train(size_t batchSize) {
   Corpus corpus("data/phones.txt");
 
   size_t nBatch = corpus.size() / batchSize;
@@ -218,8 +222,8 @@ void dtwdiag::train(size_t batchSize, float intra_inter_weight, string theta_out
   for (size_t itr=0; itr<nBatch; ++itr) {
     printf("iteration "BLUE"%8lu"COLOREND"\n", itr);
     vector<tsample> samples = corpus.getSamples(batchSize);
-    __train__(samples, intra_inter_weight);
-    saveTheta(theta_output);
+    __train__(samples);
+    saveTheta(_model_output_path);
   }
 }
 
@@ -238,11 +242,10 @@ void dtwdiag::calcObjective(const vector<tsample>& samples) {
 }
 
 void dtwdiag::updateTheta(vector<double>& theta, vector<double>& delta) {
-  static double learning_rate = 0.001;
   double maxNorm = 1;
 
   foreach (i, theta)
-    theta[i] -= learning_rate*delta[i];
+    theta[i] -= _learning_rate*delta[i];
 
   theta = max(0, theta);
   theta = min(1, theta);
@@ -255,24 +258,23 @@ void dtwdiag::saveTheta(string filename) {
   ext::save(theta, filename);
 }
 
-void dtwdiag::initModel(bool resume, size_t feat_dim) {
-  dim = feat_dim;
-  Bhattacharyya::setFeatureDimension(feat_dim);
-  Bhattacharyya::_diag.resize(feat_dim);
+void dtwdiag::initModel() {
+  Bhattacharyya::setFeatureDimension(_dim);
+  Bhattacharyya::_diag.resize(_dim);
   fillwith(Bhattacharyya::_diag, 1.0);
 
-  cout << "feat_dim = " << feat_dim << endl;
-  theta.resize(feat_dim);
+  cout << "feature dim = " << _dim << endl;
+  theta.resize(_dim);
   fillwith(theta, 1.0);
 
-  if (resume) {
+  /*if (resume) {
     Array<double> previous(".theta.restore");
     theta = (vector<double>) previous;
     cout << "Setting theta to previous-trained one" << endl;
-  }
+  }*/
 }
 
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw) {
+vector<double> dtwdiag::calcDeltaTheta(const CumulativeDtwRunner* dtw) {
   DTW_PARAM_ALIASING;
 
   if (cScore == 0 || cScore == float_inf)
