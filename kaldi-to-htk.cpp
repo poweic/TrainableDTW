@@ -26,7 +26,6 @@ int main(int argc, char* argv[]) {
   Array<string> queries(ql_fn);
   
   for (size_t i=0; i<queries.size(); ++i) {
-    // string fn = "/share/hypothesis/SI_word.kaldi/posterior/[B0F2][A5BB][A457].76.ark";
     string fn = archive + "/" + queries[i] + ".76.ark";
     cout << fn << endl;
     saveFeatureArchiveAsHtk(fn);

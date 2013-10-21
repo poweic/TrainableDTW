@@ -29,7 +29,7 @@ CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
 SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
 EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
-EXECUTABLES=train extract kaldi-to-htk calc-acoustic-similarity pair-wise-dtw #$(EXAMPLE_PROGRAM) test 
+EXECUTABLES=train extract htk-to-kaldi kaldi-to-htk calc-acoustic-similarity pair-wise-dtw #$(EXAMPLE_PROGRAM) test 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -76,6 +76,8 @@ CU_LIB=-lcuda -lcublas
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 kaldi-to-htk: $(OBJ) kaldi-to-htk.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
+htk-to-kaldi: $(OBJ) htk-to-kaldi.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 #train: $(OBJ) train.cpp obj/trainable_dtw.o obj/phone_stat.o
 	#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 

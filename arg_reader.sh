@@ -19,17 +19,35 @@ if [ "$EXP_SET" == "" ]; then
   exit -1;
 fi
 
-shift; shift; 
-AdditionalArgs=("$@")
+FEAT_TYPE=$3
+if [ "$FEAT_TYPE" == "" ]; then
+  printf "Choose either \33[32m mfcc (39) \33[0m or \33[32m posterior (76) \33[0m. \n"
+  exit -1;
+fi
 
-#AdditionalArgs=`echo "${AdditionalArgs//\"}"`
-#AdditionalArgs=`echo "$AdditionalArgs" | sed -e 's/^"//'  -e 's/"$//'`
+ark="/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark"
+
+shift; shift; shift;
+opts=("$@")
+
 # ============================
 # ===== Output Arguments =====
 # ============================
 
 QUERY_LIST=/home/boton/Dropbox/DSP/RandomWalk/source/query/${N_QUERY}.query
-MFCC_DIR=/share/hypothesis/${CORPUS}_gp/
+hypo_dir=/share/hypothesis/${CORPUS}.kaldi
+mfcc_dir=${hypo_dir}/mfcc/
+posterior_dir=${hypo_dir}/posterior/
+
+if [ "$FEAT_TYPE" == "mfcc" ]; then
+  feature_dir=$mfcc_dir
+elif [ "$FEAT_TYPE" == "posterior" ]; then
+  feature_dir=$posterior_dir
+else
+  printf "\33[31m Illegal feature type \33[0m\n"
+  exit -1;
+fi
+#MFCC_DIR=/share/hypothesis/${CORPUS}_gp/
 PRE_DIR=/share/preparsed_files
 DIR=$PRE_DIR/${CORPUS}_${EXP_SET}
 MULSIM_DIR=${DIR}/mul-sim
@@ -45,5 +63,5 @@ printf "Vocabulary \33[32m ${IV_OR_OOV} \33[0m \n"
 printf "# of queries = \33[32m ${N_QUERY} \33[0m \n"
 printf "Experiments sets for Dynamic Time Warping: \33[32m${EXP_SET}\33[0m\n"
 printf "Output Directory for mul-sim: \33[32m${MULSIM_DIR}\33[0m\n"
-printf "Additional arguments for calc-acoustic-similarity: \33[32m \" ${AdditionalArgs} \" \33[0m \n"
+printf "Additional arguments for calc-acoustic-similarity: \33[32m \" ${opts} \" \33[0m \n"
 printf "Using option \"\33[34m$dtw_options\33[0m\"\n"

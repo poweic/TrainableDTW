@@ -10,6 +10,7 @@ using namespace std;
 
 void selfTest();
 float calcError(float* s1, float* s2, int N);
+distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn);
 void normalize(float* m, int N);
 void print(float* m, int N);
 
@@ -24,6 +25,7 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance options")
+    .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"", false, "eu")
     .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
   
@@ -34,20 +36,26 @@ int main (int argc, char* argv[]) {
   string output_fn  = cmdParser.find("-o");
   bool gpuEnabled   = (cmdParser.find("--gpu-enabled") == "true");
   bool isSelfTest   = (cmdParser.find("--self-test") == "true");
+  string theta_fn   = cmdParser.find("--theta");
+  string dist_type  = cmdParser.find("--type");
 
-  if (isSelfTest) {
+  if (isSelfTest)
     selfTest();
-    return 0;
-  }
 
+  perf::Timer timer;
+  timer.start();
   int N, dim; float* data; unsigned int* offset;
   loadFeatureArchive(archive_fn, data, offset, N, dim); 
+
+  mylog(theta_fn);
+
+  distance_fn* dist = initDistanceMeasure(dist_type, dim, theta_fn);
 
   float* scores;
   if (gpuEnabled)
     scores = computePairwiseDTW_in_gpu(data, offset, N, dim);
   else
-    scores = computePairwiseDTW(data, offset, N, dim);
+    scores = computePairwiseDTW(data, offset, N, dim, *dist);
 
   normalize(scores, N);
 
@@ -58,11 +66,31 @@ int main (int argc, char* argv[]) {
       fprintf(fid, "%.7f ", scores[i * N + j]);
     fprintf(fid, "\n");
   }
-  fclose(fid);
+  
+  if (fid != stdout) 
+    fclose(fid);
 
   delete [] scores;
 
+  timer.elapsed();
+
   return 0;
+}
+
+distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) {
+  distance_fn* dist;
+  if (dist_type == "ma") {
+    dist = new mahalanobis_fn(dim);
+    dynamic_cast<mahalanobis_fn*>(dist)->setDiag(theta_fn);
+  }
+  else if (dist_type == "lip") {
+    dist = new weighted_inner_norm_fn(dim);
+    dynamic_cast<mahalanobis_fn*>(dist)->setDiag(theta_fn);
+  }
+  else
+    dist = new euclidean_fn;
+
+  return dist;
 }
 
 void selfTest() {
@@ -85,9 +113,11 @@ void selfTest() {
 
   printf(GREEN"===== CPU version ====="COLOREND);
 
+  euclidean_fn eu;
+
   timer.reset();
   timer.start();
-  float* scores = computePairwiseDTW(data, offset, N, dim);
+  float* scores = computePairwiseDTW(data, offset, N, dim, eu);
   timer.stop();
   printf("Elasped time: %.2f secs\n", timer.getTime());
 
@@ -97,6 +127,8 @@ void selfTest() {
   printf(GREEN"===== Summary ====="COLOREND);
   float error = calcError(scores_from_cuda, scores, N);
   mylog(error);
+
+  exit(1);
 }
 
 void print(float* m, int N) {
@@ -127,6 +159,9 @@ void normalize(float* m, int N) {
       if (m[i * N + j] < min) min = m[i * N + j];
     }
   }
+
+  if (min - max == 0)
+    return;
   
   range (i, N)
     range (j, N)

@@ -1,8 +1,15 @@
 #include <fast_dtw.h>
 #define __pow__(x) ((x)*(x))
 
-__global__ 
-void euclideanKernel(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float* pdist) {
+__device__ float 
+euclidean(const float* x, const float* y, size_t dim) {
+  float d = 0;
+  for (size_t i=0; i<dim; ++i)
+    d += __pow__(x[i] - y[i]);
+  return sqrt(d);
+}
+
+__global__ void pairWiseKernel(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float* pdist) {
 
   int x = blockIdx.x*blockDim.x + threadIdx.x;
   int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -11,19 +18,20 @@ void euclideanKernel(const float* f1, const float* f2, size_t rows, size_t cols,
     return;
 
   int index = x * cols + y; 
-  f1 += x * dim;
-  f2 += y * dim;
+  pdist[index] = euclidean(f1 + x*dim, f2 + y * dim, dim);
 
+  /*f1 += x * dim;
+  f2 += y * dim;
   float d = 0;
   for (int i=0; i<dim; ++i)
     d += __pow__(f1[i] - f2[i]);
-  pdist[index] = sqrt(d);
+  pdist[index] = sqrt(d);*/
 }
 
-float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist) {
+float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
   for (int x = 0; x < rows; ++x)
     for (int y = 0; y < cols; ++y)
-      pdist[x * cols + y] = euclidean(f1 + x * dim, f2 + y * dim, dim);
+      pdist[x * cols + y] = d(f1 + x * dim, f2 + y * dim, dim);
 }
 
 float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, cudaStream_t& stream) {
@@ -33,7 +41,7 @@ float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h,
   if(w % BLOCK_SIZE > 0) ++grid.x;
   if(h % BLOCK_SIZE > 0) ++grid.y;
 
-  euclideanKernel<<<grid, threads, 0, stream>>>(f1, f2, w, h, dim, pdist);
+  pairWiseKernel<<<grid, threads, 0, stream>>>(f1, f2, w, h, dim, pdist);
 }
 
 float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist) {
@@ -43,50 +51,9 @@ float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h,
   if(w % BLOCK_SIZE > 0) ++grid.x;
   if(h % BLOCK_SIZE > 0) ++grid.y;
 
-  euclideanKernel<<<grid, threads>>>(f1, f2, w, h, dim, pdist);
+  pairWiseKernel<<<grid, threads>>>(f1, f2, w, h, dim, pdist);
 }
 
-bool StreamManager::pop_front() {
-  --_counter;
-  _userData.pop();
-}
-
-bool StreamManager::push_back(const float* f1, const float* f2, int w, int h, int dim, int MAX_TABLE_SIZE, float* d_pdist, float* pdist, float* d) {
-
-  if (_counter + 1 >= _nStream)
-    return false;
-
-  cudaStream_t& s = this->_stream[_counter];
-
-  size_t offset = _counter * MAX_TABLE_SIZE;
-  pair_distance_in_gpu(f1, f2, w, h, dim, -4, d_pdist + offset, s);
-  CCE(cudaMemcpyAsync(pdist + offset, d_pdist + offset, MAX_TABLE_SIZE, cudaMemcpyDeviceToHost, s));
-
-  _userData.push(P_DIST(pdist + offset, w, h, dim, d));
-  cudaStreamAddCallback(s, ::callback, &(_userData.back()), 0);
-
-  _counter++;
-
-  return true;
-}
-
-size_t StreamManager::size() { return _nStream; }
-
-StreamManager& StreamManager::getInstance() {
-  static StreamManager instance(128);
-  return instance;
-}
-
-StreamManager::StreamManager(int nStream):_nStream(nStream), _counter(0) {
-  _stream = new cudaStream_t[_nStream];
-  range (i, _nStream)
-    CCE(cudaStreamCreate(&_stream[i]));
-}
-
-StreamManager::~StreamManager() {
-  range (i, _nStream)
-    CCE(cudaStreamDestroy(_stream[i]));
-}
 
 void callback(cudaStream_t stream, cudaError_t status, void* userData) {
 
@@ -99,6 +66,40 @@ void callback(cudaStream_t stream, cudaError_t status, void* userData) {
   *d = fast_dtw(pdist, w, h, dim, -4, NULL, NULL);
 
   StreamManager::getInstance().pop_front();
+}
+
+float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn) {
+
+  size_t MAX_LENGTH = 0;
+  range (i, N) {
+    unsigned int length = (offset[i+1] - offset[i]) / dim;
+    if ( length > MAX_LENGTH)
+	MAX_LENGTH = length;
+  }
+
+  float* alpha = new float[MAX_LENGTH * MAX_LENGTH];
+  float* pdist = new float[MAX_LENGTH * MAX_LENGTH];
+
+  float* scores = new float[N * N];
+
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<=i; ++j) {
+      size_t length1 = (offset[i + 1] - offset[i]) / dim;
+      size_t length2 = (offset[j + 1] - offset[j]) / dim;
+
+      const float *f1 = data + offset[i];
+      const float *f2 = data + offset[j];
+
+      pair_distance(f1, f2, length1, length2, dim, -4, pdist, fn);
+      float s = fast_dtw(pdist, length1, length2, dim, -4, alpha);
+      scores[i * N + j] = scores[j * N + i] = s;
+    }
+  }
+
+  delete [] alpha;
+  delete [] pdist;
+
+  return scores;
 }
 
 float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, int N, int dim) {
@@ -202,13 +203,6 @@ size_t findMaxLength(const unsigned int* offset, int N, int dim) {
   return MAX_LENGTH;
 }
 
-float euclidean(const float* x, const float* y, size_t dim) {
-  float d = 0;
-  for (size_t i=0; i<dim; ++i)
-    d += pow(x[i] - y[i], 2.0);
-  return sqrt(d);
-}
-
 float** malloc2D(size_t m, size_t n) {
   float** p = new float*[m];
   range (i, m)
@@ -248,7 +242,7 @@ float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, fl
   // interior points
   for (int x = 1; x < rows; ++x) {
     for (int y = 1; y < cols; ++y) {
-      float temp = min(alpha[(x-1) * cols + y], alpha[x * cols + y-1]);
+      // float temp = min(alpha[(x-1) * cols + y], alpha[x * cols + y-1]);
       // alpha[x * cols + y] = min(temp, alpha[(x-1) * cols + y-1]) + pdist[x * cols + y];
       alpha[x * cols + y] = (float) smin(alpha[(x-1) * cols + y], alpha[x * cols + y-1], alpha[(x-1) * cols + y-1], eta) + pdist[x * cols + y];
     }
@@ -263,38 +257,46 @@ float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, fl
   return distance;
 }
 
-float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim) {
+bool StreamManager::pop_front() {
+  --_counter;
+  _userData.pop();
+}
 
-  size_t MAX_LENGTH = 0;
-  range (i, N) {
-    unsigned int length = (offset[i+1] - offset[i]) / dim;
-    if ( length > MAX_LENGTH)
-	MAX_LENGTH = length;
-  }
+bool StreamManager::push_back(const float* f1, const float* f2, int w, int h, int dim, int MAX_TABLE_SIZE, float* d_pdist, float* pdist, float* d) {
 
-  float* alpha = new float[MAX_LENGTH * MAX_LENGTH];
-  float* pdist = new float[MAX_LENGTH * MAX_LENGTH];
+  if (_counter + 1 >= _nStream)
+    return false;
 
-  float* scores = new float[N * N];
+  cudaStream_t& s = this->_stream[_counter];
 
-  for (int i=0; i<N; ++i) {
-    for (int j=0; j<=i; ++j) {
-      size_t length1 = (offset[i + 1] - offset[i]) / dim;
-      size_t length2 = (offset[j + 1] - offset[j]) / dim;
+  size_t offset = _counter * MAX_TABLE_SIZE;
+  pair_distance_in_gpu(f1, f2, w, h, dim, -4, d_pdist + offset, s);
+  CCE(cudaMemcpyAsync(pdist + offset, d_pdist + offset, MAX_TABLE_SIZE, cudaMemcpyDeviceToHost, s));
 
-      const float *f1 = data + offset[i];
-      const float *f2 = data + offset[j];
+  _userData.push(P_DIST(pdist + offset, w, h, dim, d));
+  cudaStreamAddCallback(s, ::callback, &(_userData.back()), 0);
 
-      pair_distance(f1, f2, length1, length2, dim, -4, pdist);
-      float s = fast_dtw(pdist, length1, length2, dim, -4, alpha);
-      scores[i * N + j] = scores[j * N + i] = s;
-    }
-  }
+  _counter++;
 
-  delete [] alpha;
-  delete [] pdist;
+  return true;
+}
 
-  return scores;
+size_t StreamManager::size() { return _nStream; }
+
+StreamManager& StreamManager::getInstance() {
+  static StreamManager instance(128);
+  return instance;
+}
+
+StreamManager::StreamManager(int nStream):_nStream(nStream), _counter(0) {
+  _stream = new cudaStream_t[_nStream];
+  range (i, _nStream)
+    CCE(cudaStreamCreate(&_stream[i]));
+}
+
+StreamManager::~StreamManager() {
+  range (i, _nStream)
+    CCE(cudaStreamDestroy(_stream[i]));
 }
 
 /*extern "C" __global__
@@ -434,3 +436,4 @@ void computePairwiseDTW(string filename, float** &scores, int& N) {
   range (i, N)
     free2D(data[i], lengths[i]);
 }*/
+

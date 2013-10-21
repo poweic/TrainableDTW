@@ -28,14 +28,20 @@ function recalcAS() {
   shopt -s extglob
   query=$1
   query="${query%%*( )}"
-  dir=$MFCC_DIR"/"$query
-  mat="$MULSIM_DIR/$query.mul-sim"
-  list="$LIST_DIR/$query.lst"
+  #feature="${feature_dir}/${query}.39.ark"
+  feature=`ls ${feature_dir}/${query}.*`
+
+  dir="${MFCC_DIR}/${query}"
+  mat="${MULSIM_DIR}/${query}.mul-sim"
+  list="${LIST_DIR}/${query}.lst"
 
   printf "Processing query: \33[34m%s\33[0m\n" ${query}
 
-  ./calc-acoustic-similarity -d $dir -o $mat $dtw_options --list=$list ${AdditionalArgs[@]}
-
+  #old_bin=./calc-acoustic-similarity
+  #echo ${old_bin} -d $dir -o $mat $dtw_options --list=$list ${opts[@]}
+  bin=./pair-wise-dtw
+  ${bin} --ark=$feature -o $mat ${opts[@]}
+  
   shopt -u extglob
 }
 recalcAcousticSimilarity

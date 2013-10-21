@@ -4,6 +4,7 @@
 #include <vector>
 #include <time.h>
 #include <cstdlib>
+#include <limits>
 #include <map>
 
 #include <matrix.h>

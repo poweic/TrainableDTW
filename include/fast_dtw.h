@@ -4,10 +4,9 @@
 #include <string>
 #include <queue>
 
-//#include <cdtw.h>
 #include <archive_io.h>
 #include <utility.h>
-#include <matrix.h>
+#include <math_ext.h>
 
 /* Includes, cuda */
 #include <cuda_runtime.h>
@@ -18,21 +17,95 @@
 using namespace std;
 typedef vector<vulcan::DoubleVector> FeatureSeq;
 
+class distance_fn {
+public:
+  virtual float operator() (const float* x, const float* y, size_t dim) = 0;
+};
+
+class euclidean_fn : public distance_fn {
+  public:
+    virtual float operator() (const float* x, const float* y, size_t dim) {
+      float d = 0;
+      for (size_t i=0; i<dim; ++i)
+	d += pow(x[i] - y[i], 2.0);
+      return sqrt(d);
+    }
+};
+
+class mahalanobis_fn : public distance_fn {
+public:
+
+  mahalanobis_fn(size_t dim): _diag(NULL), _dim(dim) {
+    _diag = new float[_dim];
+    range (i, _dim)
+      _diag[i] = 1;
+  }
+
+  virtual float operator() (const float* x, const float* y, size_t dim) {
+    float d = 0;
+    for (size_t i=0; i<dim; ++i)
+      d += pow(x[i] - y[i], 2.0) * _diag[i];
+
+    return sqrt(d);
+  }
+
+  virtual void setDiag(string filename) {
+    if (filename.empty())
+      return;
+
+    vector<float> diag;
+    ext::load(diag, filename);
+    this->setDiag(diag);
+  }
+
+  virtual void setDiag(const vector<float>& diag) {
+    assert(_dim == diag.size());
+    if (_diag != NULL)
+      delete [] _diag;
+
+    _diag = new float[_dim];
+    range (i, _dim)
+      _diag[i] = diag[i];
+  }
+
+  float* _diag;
+  size_t _dim;
+
+private:
+  mahalanobis_fn();
+};
+
+class weighted_inner_norm_fn : public mahalanobis_fn {
+public:
+
+  weighted_inner_norm_fn(size_t dim): mahalanobis_fn(dim) {}
+
+  virtual float operator() (const float* x, const float* y, size_t dim) {
+    float d = 0;
+    for (size_t i=0; i<dim; ++i)
+      d += x[i] * y[i] * _diag[i];
+    return -log(d);
+  }
+};
+
+
 inline float addlog(float x, float y);
 inline float smin(float x, float y, float z, float eta);
 size_t findMaxLength(const unsigned int* offset, int N, int dim);
 
-float euclidean(const float* x, const float* y, size_t dim);
-__global__ void euclideanKernel(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float* pdist);
+__device__ float euclidean(const float* x, const float* y, size_t dim);
 
-float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim);
+__global__ void pairWiseKernel(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float* pdist);
+
+// float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim);
+float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn);
 float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, int N, int dim);
 
 
 void callback(cudaStream_t stream, cudaError_t status, void* userData);
 
-
-float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist);
+// float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist);
+float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& fn);
 float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, cudaStream_t& stream);
 float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist);
 
