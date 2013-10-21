@@ -30,7 +30,7 @@ int main (int argc, char* argv[]) {
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options")
-    .add("-p", "Choose either \"validate\", \"train\" or \"evaluate\".")
+    .add("-p", "Choose either \"selftest\", \"train\" or \"evaluate\".")
     .add("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
 
   cmdParser
@@ -72,9 +72,9 @@ int main (int argc, char* argv[]) {
   // Parsering Command Arguments
   string phase = cmdParser.find("-p");
 
-  size_t batchSize  = str2int(cmdParser.find("--batch-size"));
-  size_t N	    = str2int(cmdParser.find("-n"));
-  string MFCC_DIR   = cmdParser.find("--mfcc-root");
+  size_t batchSize	  = str2int(cmdParser.find("--batch-size"));
+  size_t N	    	  = str2int(cmdParser.find("-n"));
+  string MFCC_DIR   	  = cmdParser.find("--mfcc-root");
 
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
@@ -101,8 +101,8 @@ int main (int argc, char* argv[]) {
   if (m == "dnn") {
     dtwdnn dnn(feat_dim, intra_inter_weight, lr, nHiddenLayer, nHiddenNodes);
 
-    if (phase == "validate")
-      dnn.validation(corpus);
+    if (phase == "selftest")
+      dnn.selftest(corpus);
     else if (phase == "train")
       dnn.train(corpus, batchSize);
   }
@@ -110,8 +110,8 @@ int main (int argc, char* argv[]) {
 
     dtwdiag diag(feat_dim, intra_inter_weight, lr, thetaFilename);
 
-    if (phase == "validate")
-      diag.validation(corpus);
+    if (phase == "selftest")
+      diag.selftest(corpus);
     else if (phase == "train")
       diag.train(corpus, batchSize);
   }

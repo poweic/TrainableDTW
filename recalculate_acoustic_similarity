@@ -29,7 +29,7 @@ function recalcAS() {
   query=$1
   query="${query%%*( )}"
   #feature="${feature_dir}/${query}.39.ark"
-  feature=`ls ${feature_dir}/${query}.*`
+  feature="${feature_dir}/${query}.${feature_dim}.ark"
 
   dir="${MFCC_DIR}/${query}"
   mat="${MULSIM_DIR}/${query}.mul-sim"
