@@ -96,10 +96,14 @@ namespace DtwUtil {
     this->_cScore = SMIN::eval(score_[qL_ - 1], dL_);
 #endif
 
+    /*if (qL_ + dL_ == 0)
+      printf("qL_ + dL_ = %d\n", qL_ + dL_);
+    else
+      this->_cScore /= (qL_ + dL_);*/
+
     if (scoreOnly)
       return;
 
-    //cout << _cScore << endl;
 #ifdef DTW_SLOPE_CONSTRAINT
     if (this->_cScore == float_inf)
       return;

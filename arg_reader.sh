@@ -41,8 +41,10 @@ posterior_dir=${hypo_dir}/posterior/
 
 if [ "$FEAT_TYPE" == "mfcc" ]; then
   feature_dir=$mfcc_dir
+  feature_dim=39
 elif [ "$FEAT_TYPE" == "posterior" ]; then
   feature_dir=$posterior_dir
+  feature_dim=76
 else
   printf "\33[31m Illegal feature type \33[0m\n"
   exit -1;

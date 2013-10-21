@@ -1,7 +1,42 @@
 #include <trainable_dtw.h>
 #include <pbar.h>
 
-void dtw_model::calcObjective(const vector<tsample>& samples) {
+void dtw_model::validate(Corpus& corpus) {
+  static const size_t MINIATURE_SIZE = 10000;
+  static vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
+  static double objective = 0;
+  static bool aboutToStop = false;
+  static const double SOFT_THRESHOLD = 1e-5;
+  static const double HARD_THRESHOLD = SOFT_THRESHOLD * 0.1;
+  static size_t MIN_ITERATION = 128;
+  static size_t itr = 0;
+
+  double obj = calcObjective(samples);
+  double diff = obj - objective;
+  double improveRate = abs(diff / objective);
+
+  printf("objective = %.4f \t prev-objective = %.4f \n", obj, objective);
+  printf("improvement rate on dev-set of size %lu = %.6e ", samples.size(), improveRate);
+  printf(", still "GREEN"%.0f"COLOREND" times of threshold \n", improveRate / SOFT_THRESHOLD);
+
+  if (itr > MIN_ITERATION) {
+    if (improveRate < HARD_THRESHOLD) {
+      printf("\nObjective function on dev-set is no longer decreasing...\n");
+      printf("Training process "GREEN"DONE"COLOREND"\n");
+      doPause();
+      exit(-1);
+    }
+    else if (aboutToStop || improveRate < SOFT_THRESHOLD) {
+      aboutToStop = true;
+      _learning_rate /= 2;
+    }
+  }
+
+  objective = obj;
+  ++itr;
+}
+
+double dtw_model::calcObjective(const vector<tsample>& samples) {
   double obj = 0;
   foreach (i, samples) {
     double cscore = dtw(samples[i].first.first, samples[i].first.second);
@@ -11,7 +46,7 @@ void dtw_model::calcObjective(const vector<tsample>& samples) {
     obj += (positive) ? cscore : (-_intra_inter_weight * cscore);
   }
 
-  printf("%.8f\n", obj);
+  return obj;
 }
 
 double dtw_model::dtw(DtwParm& q_parm, DtwParm& d_parm, void *dTheta) {
@@ -38,6 +73,36 @@ double dtw_model::dtw(string f1, string f2, void* dTheta) {
   return dtw(q_parm, d_parm, dTheta);
 }
 
+void dtw_model::selftest(Corpus& corpus) {
+  const size_t MINIATURE_SIZE = 50;
+  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
+
+  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
+
+  for (size_t itr=0; itr<10000; ++itr) {
+    __train__(samples);
+    double obj = calcObjective(samples);
+    printf("%.8f\n", obj);
+    saveModel();
+  }
+}
+
+void dtw_model::train(Corpus& corpus, size_t batchSize) {
+
+  size_t nBatch = corpus.size() / batchSize;
+  cout << "# of batches = " << nBatch << endl;
+
+  for (size_t itr=0; itr<nBatch; ++itr) {
+    showMsg(itr);
+
+    vector<tsample> samples = corpus.getSamples(batchSize);
+    __train__(samples);
+    saveModel();
+    validate(corpus);
+  }
+
+}
+
 // +===============================================================+
 // +===== DTW with distance metric being Deep Nerual Network  =====+
 // +===============================================================+
@@ -50,37 +115,8 @@ float dnn_fn(const float* x, const float* y, const int size) {
   return dtwdnn::getInstance().evaluate(x, y);
 }
 
-void dtwdnn::train(Corpus& corpus, size_t batchSize) {
-
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
-
-  for (size_t itr=0; itr<nBatch; ++itr) {
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    showMsg(itr);
-    __train__(samples);
-    getInstance().save(_model_output_path);
-  }
-
-}
-void dtwdnn::validation(Corpus& corpus) {
-  const size_t MINIATURE_SIZE = 50;
-  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
-
-  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-  perf::Timer timer;
-  for (size_t itr=0; itr<10000; ++itr) {
-    showMsg(itr);
-    __train__(samples);
-    calcObjective(samples);
-    getInstance().save(_model_output_path);
-  }
-}
-
 void dtwdnn::__train__(const vector<tsample>& samples) {
   perf::Timer timer;
-  printf("\t# of samples = %lu\n", samples.size());
   timer.start();
 
   Model &model = getInstance();
@@ -121,6 +157,10 @@ void dtwdnn::initModel() {
 
   getInstance() = Model(d1, d2);
   getInstance().setLearningRate(_learning_rate);
+}
+
+void dtwdnn::saveModel() {
+  getInstance().save(_model_output_path);
 }
 
 void dtwdnn::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
@@ -171,53 +211,30 @@ void dtwdiag::__train__(const vector<tsample>& samples) {
   updateTheta(dTheta);
 }
 
-void dtwdiag::validation(Corpus& corpus) {
-  const size_t MINIATURE_SIZE = 1000;
-  vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
-
-  cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
-
-  for (size_t itr=0; itr<10000; ++itr) {
-    __train__(samples);
-    calcObjective(samples);
-    saveTheta(_model_output_path);
-  }
-}
-
-void dtwdiag::train(Corpus& corpus, size_t batchSize) {
-
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
-
-  for (size_t itr=0; itr<nBatch; ++itr) {
-    showMsg(itr);
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    __train__(samples);
-    saveTheta(_model_output_path);
-  }
-}
-
 void dtwdiag::updateTheta(vector<double>& delta) {
 
-  foreach (i, _theta)
-    _theta[i] -= _learning_rate * delta[i];
+  vector<double>& theta = Bhattacharyya::_diag;
 
-  _theta = max(0, _theta);
-  _theta = min(1, _theta);
+  foreach (i, theta)
+    theta[i] -= _learning_rate * delta[i];
 
-  Bhattacharyya::_diag = _theta;
+  theta = max(0, theta);
+  theta = min(1, theta);
+
+  //Bhattacharyya::_diag = theta;
 }
 
-void dtwdiag::saveTheta(string filename) {
-  ext::save(_theta, filename);
+void dtwdiag::saveModel() {
+  ext::save(Bhattacharyya::_diag, _model_output_path);
 }
 
 void dtwdiag::initModel() {
-  Bhattacharyya::_diag.resize(_dim);
+  Bhattacharyya::_diag = ext::rand<double>(_dim);
+  ::print(Bhattacharyya::_diag);
+  /*Bhattacharyya::_diag.resize(_dim);
   fillwith(Bhattacharyya::_diag, 1.0);
-
   _theta.resize(_dim);
-  fillwith(_theta, 1.0);
+  fillwith(_theta, 1.0);*/
   cout << "feature dim = " << _dim << endl;
 }
 

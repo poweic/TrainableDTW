@@ -33,11 +33,14 @@ public:
 
   virtual void initModel() = 0;
   virtual void __train__(const vector<tsample>& samples) = 0;
-  virtual void train(Corpus& corpus, size_t batchSzie) = 0;
-  virtual void validation(Corpus& corpus) = 0;
+  virtual void train(Corpus& corpus, size_t batchSzie);
+  virtual void validate(Corpus& corpus);
+  virtual void selftest(Corpus& corpus);
   virtual VectorDistFn getDistFn() = 0;
 
-  virtual void calcObjective(const vector<tsample>& samples);
+  virtual void saveModel() = 0;
+
+  virtual double calcObjective(const vector<tsample>& samples);
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) = 0;
 
   double dtw(string f1, string f2, void* dTheta = NULL);
@@ -71,9 +74,10 @@ public:
 
   virtual void initModel();
   virtual void __train__(const vector<tsample>& samples);
-  virtual void train(Corpus& corpus, size_t batchSize);
-  virtual void validation(Corpus& corpus);
+  // virtual void train(Corpus& corpus, size_t batchSize);
   virtual VectorDistFn getDistFn();
+
+  virtual void saveModel();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
 
@@ -99,20 +103,16 @@ public:
     }
 
   virtual void initModel();
-  virtual void validation(Corpus& corpus);
   virtual void __train__(const vector<tsample>& samples);
-  virtual void train(Corpus& corpus, size_t batchSize);
+  //virtual void train(Corpus& corpus, size_t batchSize);
 
   virtual VectorDistFn getDistFn();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
 
   void updateTheta(vector<double>& delta);
-  void saveTheta(string filename);
 
-private:
-  vector<double> _theta;
-  vector<double> _diag;
+  virtual void saveModel();
 };
 
 #define DTW_PARAM_ALIASING \

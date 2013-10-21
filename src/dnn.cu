@@ -254,13 +254,13 @@ void Model::updateParameters(GRADIENT& g) {
 
   STL_VECTOR<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
-    ppw[i] += _lr * (ppg1[i] + ppg2[i]);
+    ppw[i] -= _lr * (ppg1[i] + ppg2[i]);
 
-  this->_w += _lr * mg * 1e7;
+  this->_w -= _lr * mg * 1e7;
 
   STL_VECTOR<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
-    dtww[i] += _lr * dtwg[i];
+    dtww[i] -= _lr * dtwg[i];
 }
 
 void Model::setLearningRate(float learning_rate) {
