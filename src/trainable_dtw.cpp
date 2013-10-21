@@ -8,6 +8,8 @@ void dtw_model::validate(Corpus& corpus) {
   static bool aboutToStop = false;
   static const double SOFT_THRESHOLD = 1e-5;
   static const double HARD_THRESHOLD = SOFT_THRESHOLD * 0.1;
+  static size_t MIN_ITERATION = 128;
+  static size_t itr = 0;
 
   double obj = calcObjective(samples);
   double diff = obj - objective;
@@ -17,18 +19,21 @@ void dtw_model::validate(Corpus& corpus) {
   printf("improvement rate on dev-set of size %lu = %.6e ", samples.size(), improveRate);
   printf(", still "GREEN"%.0f"COLOREND" times of threshold \n", improveRate / SOFT_THRESHOLD);
 
-  if (improveRate < HARD_THRESHOLD) {
-    printf("\nObjective function on dev-set is no longer decreasing...\n");
-    printf("Training process "GREEN"DONE"COLOREND"\n");
-    doPause();
-    exit(-1);
-  }
-  else if (aboutToStop || improveRate < SOFT_THRESHOLD) {
-    aboutToStop = true;
-    _learning_rate /= 2;
+  if (itr > MIN_ITERATION) {
+    if (improveRate < HARD_THRESHOLD) {
+      printf("\nObjective function on dev-set is no longer decreasing...\n");
+      printf("Training process "GREEN"DONE"COLOREND"\n");
+      doPause();
+      exit(-1);
+    }
+    else if (aboutToStop || improveRate < SOFT_THRESHOLD) {
+      aboutToStop = true;
+      _learning_rate /= 2;
+    }
   }
 
   objective = obj;
+  ++itr;
 }
 
 double dtw_model::calcObjective(const vector<tsample>& samples) {
@@ -206,40 +211,30 @@ void dtwdiag::__train__(const vector<tsample>& samples) {
   updateTheta(dTheta);
 }
 
-/*void dtwdiag::train(Corpus& corpus, size_t batchSize) {
-
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
-
-  for (size_t itr=0; itr<nBatch; ++itr) {
-    showMsg(itr);
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    __train__(samples);
-    saveModel();
-  }
-}*/
-
 void dtwdiag::updateTheta(vector<double>& delta) {
 
-  foreach (i, _theta)
-    _theta[i] -= _learning_rate * delta[i];
+  vector<double>& theta = Bhattacharyya::_diag;
 
-  _theta = max(0, _theta);
-  _theta = min(1, _theta);
+  foreach (i, theta)
+    theta[i] -= _learning_rate * delta[i];
 
-  Bhattacharyya::_diag = _theta;
+  theta = max(0, theta);
+  theta = min(1, theta);
+
+  //Bhattacharyya::_diag = theta;
 }
 
 void dtwdiag::saveModel() {
-  ext::save(_theta, _model_output_path);
+  ext::save(Bhattacharyya::_diag, _model_output_path);
 }
 
 void dtwdiag::initModel() {
-  Bhattacharyya::_diag.resize(_dim);
+  Bhattacharyya::_diag = ext::rand<double>(_dim);
+  ::print(Bhattacharyya::_diag);
+  /*Bhattacharyya::_diag.resize(_dim);
   fillwith(Bhattacharyya::_diag, 1.0);
-
   _theta.resize(_dim);
-  fillwith(_theta, 1.0);
+  fillwith(_theta, 1.0);*/
   cout << "feature dim = " << _dim << endl;
 }
 

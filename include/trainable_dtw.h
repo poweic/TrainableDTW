@@ -113,10 +113,6 @@ public:
   void updateTheta(vector<double>& delta);
 
   virtual void saveModel();
-
-private:
-  vector<double> _theta;
-  vector<double> _diag;
 };
 
 #define DTW_PARAM_ALIASING \
