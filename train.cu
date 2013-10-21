@@ -104,21 +104,23 @@ int main (int argc, char* argv[]) {
   profile.tic();
 
   if (m == "dnn") {
-    dtwdnn::initModel(model, feat_dim, nHiddenLayer, nHiddenNodes, lr);
+    dtwdnn dnn;
+    dnn.initModel(model, feat_dim, nHiddenLayer, nHiddenNodes, lr);
 
     if (phase == "validate")
-      dtwdnn::validation();
+      dnn.validation();
     else if (phase == "train")
-      dtwdnn::train(batchSize);
+      dnn.train(batchSize);
   }
   else if (m == "diag") {
 
-    dtwdiag::initModel(resume, feat_dim);
+    dtwdiag diag;
+    diag.initModel(resume, feat_dim);
 
     if (phase == "validate")
-      dtwdiag::validation();
+      diag.validation();
     else if (phase == "train")
-      dtwdiag::train(batchSize, intra_inter_weight, thetaFilename);
+      diag.train(batchSize, intra_inter_weight, thetaFilename);
   }
 
   profile.toc();

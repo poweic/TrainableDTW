@@ -20,7 +20,11 @@
 
 float dnn_fn(const float* x, const float* y, const int size);
 
-namespace dtwdnn {
+class dtw_model {
+};
+
+class dtwdnn {
+public:
   double dtw(DtwParm& q_parm, DtwParm& d_parm, GRADIENT* dTheta = NULL);
   double dtw(string f1, string f2, GRADIENT* dTheta = NULL);
   void __train__(const vector<tsample>& samples);
@@ -31,7 +35,8 @@ namespace dtwdnn {
   void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
 };
 
-namespace dtwdiag {
+class dtwdiag {
+public:
   double dtw(string f1, string f2, vector<double> *dTheta = NULL);
 
   void validation();
@@ -45,7 +50,7 @@ namespace dtwdiag {
   void initModel(bool resume, size_t feat_dim);
 
   // feature dimension. Ex: dim = 39 for mfcc
-  extern size_t dim;
+  size_t dim;
 };
 
 #define DTW_PARAM_ALIASING \
