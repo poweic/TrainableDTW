@@ -17,16 +17,13 @@
 using namespace DtwUtil;
 using namespace std;
 
-void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
+//void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
 void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile);
 Array<string> getPhoneList(string filename);
 void signalHandler(int param);
 void regSignalHandler();
 
 string scoreDir;
-Model model;
-vector<double> theta;
-float intra_inter_weight;
 
 int main (int argc, char* argv[]) {
   
@@ -38,7 +35,7 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance measure options")
-    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-64")
+    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4")
     .add("--weight", "Specify the weight between intra-phone & inter-phone", false, "0.065382482");
 
   cmdParser
@@ -46,7 +43,7 @@ int main (int argc, char* argv[]) {
     .add("--model", "choose a distance model, either \"dnn\" or \"diag\"", false, "dnn")
     .add("--batch-size", "number of training samples per batch", false, "1000")
     .add("--resume-training", "resume training using the previous condition", false, "false")
-    .add("--learning-rate", "learning rate", false, "-0.0001")
+    .add("--learning-rate", "learning rate", false, "0.0001")
     .add("--theta-output", "choose a file to save theta", false, ".theta.restore");
 
   cmdParser
@@ -69,8 +66,6 @@ int main (int argc, char* argv[]) {
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
 
-  //regSignalHandler();
-
   scoreDir = cmdParser.find("-d") + "/";
   exec("mkdir -p " + scoreDir);
 
@@ -80,8 +75,6 @@ int main (int argc, char* argv[]) {
   size_t batchSize  = str2int(cmdParser.find("--batch-size"));
   size_t N	    = str2int(cmdParser.find("-n"));
   string MFCC_DIR   = cmdParser.find("--mfcc-root");
-
-  SubCorpus::setMfccDirectory(MFCC_DIR);
 
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
@@ -97,28 +90,30 @@ int main (int argc, char* argv[]) {
   string thetaFilename	  = cmdParser.find("--theta-output");
 
   size_t feat_dim	  = str2int(cmdParser.find("--feat-dim"));
-
-  intra_inter_weight	  = str2double(cmdParser.find("--weight"));
+  float intra_inter_weight= str2double(cmdParser.find("--weight"));
 
   Profile profile;
   profile.tic();
 
+  SubCorpus::setMfccDirectory(MFCC_DIR);
+  Corpus corpus("data/phones.txt");
+
   if (m == "dnn") {
-    dtwdnn::initModel(model, feat_dim, nHiddenLayer, nHiddenNodes, lr);
+    dtwdnn dnn(feat_dim, intra_inter_weight, lr, nHiddenLayer, nHiddenNodes);
 
     if (phase == "validate")
-      dtwdnn::validation();
+      dnn.validation(corpus);
     else if (phase == "train")
-      dtwdnn::train(batchSize);
+      dnn.train(corpus, batchSize);
   }
   else if (m == "diag") {
 
-    dtwdiag::initModel(resume, feat_dim);
+    dtwdiag diag(feat_dim, intra_inter_weight, lr, thetaFilename);
 
     if (phase == "validate")
-      dtwdiag::validation();
+      diag.validation(corpus);
     else if (phase == "train")
-      dtwdiag::train(batchSize, intra_inter_weight, thetaFilename);
+      diag.train(corpus, batchSize);
   }
 
   profile.toc();
@@ -130,9 +125,7 @@ void signalHandler(int param) {
   cout << RED "[Interrupted]" COLOREND << " aborted by user." << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
-  //dtwdiag::saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
-
   exit(-1);
 }
 

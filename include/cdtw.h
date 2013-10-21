@@ -30,39 +30,33 @@ public:
 inline double sigmoid(double x);
 inline double d_sigmoid(double x);
 
-//typedef vector<float>& cvec;
-typedef const float* cvec;
-
 class Bhattacharyya {
-  public:
-    vector<double> operator() (cvec x, cvec y) const;
+public:
+  vector<double> operator() (const float* x, const float* y) const;
 
-    static vector<double>& getDiag();
-    static void setDiag(const vector<double>& d);
-    static float fn(const float* a, const float* b, const int size);
-    static void setDiagFromFile(const string& theta_filename);
-    static void setFeatureDimension(size_t dim);
+  static float fn(const float* a, const float* b, const int size);
+  static void setDiagFromFile(const string& theta_filename);
 
-    static vector<double> _diag;
-  private:
-    static size_t _dim;
+  static vector<double> _diag;
 };
-
-typedef TwoDimArray<float> Table;
 
 namespace DtwUtil {
 
   class CumulativeDtwRunner : public FrameDtwRunner {
     public:
       CumulativeDtwRunner(VectorDistFn norm) : FrameDtwRunner(norm) {}
-      inline double getAlphaBeta(int i, int j) ;
+      void init(vector<float>* snippet_dist,
+                vector<IPair>* snippet_bound,
+                const DtwParm* q_parm,
+                const DtwParm* d_parm);
+      inline double getAlphaBeta(int i, int j);
 
       void DTW(bool scoreOnly = false);
       void calcBeta();
       void calcAlpha();
 
-      const Table& getAlpha() const { return score_; }
-      const Table& getBeta() const { return beta_; }
+      const TwoDimArray<float>& getAlpha() const { return score_; }
+      const TwoDimArray<float>& getBeta() const { return beta_; }
 
       size_t getFeatureDimension() const {
 	return this->qparm_->Feat().LF();
@@ -92,7 +86,5 @@ namespace DtwUtil {
   };
 
 };
-
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
 
 #endif // __CDTW_H

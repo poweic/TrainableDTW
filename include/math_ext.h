@@ -82,7 +82,6 @@ namespace ext {
     return x == std::numeric_limits<T>::infinity() || x == -std::numeric_limits<T>::infinity();
   }
 
-#define PI 3.14159265
   // =============================================
   // ===== Normal Distribution Random Number =====
   // =============================================

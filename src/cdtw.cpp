@@ -20,25 +20,13 @@ inline double d_sigmoid(double x) {
 }
 
 // ====================================================================
-size_t Bhattacharyya::_dim = 39;
-
-vector<double> Bhattacharyya::_diag(Bhattacharyya::_dim, 1.0);
-
-void Bhattacharyya::setDiag(const vector<double>& d) {
-  Bhattacharyya::_diag = d;
-}
-
-vector<double>& Bhattacharyya::getDiag() {
-  return Bhattacharyya::_diag;
-}
+vector<double> Bhattacharyya::_diag(1);
 
 void Bhattacharyya::setDiagFromFile(const string& filename) {
   if (filename.empty())
     return;
 
-  vector<double> diag;
-  ext::load<double>(diag, filename);
-  Bhattacharyya::setDiag(diag);
+  ext::load<double>(_diag, filename);
 }
 
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
@@ -49,18 +37,17 @@ float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   ret = -log(ret);
   return ret;
 
-  for (int i = 0; i < size; ++i)
+  /*for (int i = 0; i < size; ++i)
     ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
     //ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
   ret = sqrt(ret);
-
-  return ret;
+  return ret;*/
 }
 
 vector<double> Bhattacharyya::operator() (const float* x, const float* y) const {
-  vector<double> partial(_dim);
+  vector<double> partial(_diag.size());
 
-  float d = Bhattacharyya::fn(x, y, _dim);
+  float d = Bhattacharyya::fn(x, y, _diag.size());
 
   if (d == 0)
     return partial;
@@ -69,20 +56,23 @@ vector<double> Bhattacharyya::operator() (const float* x, const float* y) const 
     partial[i] = -exp(d) * x[i] * y[i];
   return partial;
 
-  float c = (float) 1.0 / d / 2;
+  /*float c = (float) 1.0 / d / 2;
   foreach (i, partial)
     partial[i] = pow(x[i] - y[i], 2) * c; // * d_sigmoid(Bhattacharyya::_diag[k]);
-  return partial;
-}
-
-void Bhattacharyya::setFeatureDimension(size_t dim) {
-  Bhattacharyya::_dim = dim;
+  return partial;*/
 }
 
 // ====================================================================
 
-
 namespace DtwUtil {
+  
+  void CumulativeDtwRunner::init(vector<float>* hypo_score, vector<IPair>* hypo_bound, const DtwParm* q_parm, const DtwParm* d_parm) {
+
+    if (d_parm->Feat().LT() < q_parm->Feat().LT())
+      std::swap(d_parm, q_parm);
+    
+    this->InitDtw(hypo_score, hypo_bound, NULL, q_parm, d_parm, NULL, NULL);
+  }
   
   void CumulativeDtwRunner::DTW(bool scoreOnly) {
     //FrameDtwRunner::DTW();

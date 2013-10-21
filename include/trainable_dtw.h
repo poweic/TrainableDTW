@@ -20,44 +20,106 @@
 
 float dnn_fn(const float* x, const float* y, const int size);
 
-namespace dtwdnn {
-  double dtw(DtwParm& q_parm, DtwParm& d_parm, GRADIENT* dTheta = NULL);
-  double dtw(string f1, string f2, GRADIENT* dTheta = NULL);
-  void __train__(const vector<tsample>& samples);
-  void validation();
-  void calcObjective(const vector<tsample>& samples);
-  void train(size_t batchSize);
+class dtw_model {
+public:
+  dtw_model(size_t dim, 
+	    float weight,
+	    float learning_rate,
+	    string model_output_path):
+    _dim(dim),
+    _intra_inter_weight(weight),
+    _learning_rate(learning_rate),
+    _model_output_path(model_output_path) {}
 
-  void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
+  virtual void initModel() = 0;
+  virtual void __train__(const vector<tsample>& samples) = 0;
+  virtual void train(Corpus& corpus, size_t batchSzie) = 0;
+  virtual void validation(Corpus& corpus) = 0;
+  virtual VectorDistFn getDistFn() = 0;
+
+  virtual void calcObjective(const vector<tsample>& samples);
+  virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) = 0;
+
+  double dtw(string f1, string f2, void* dTheta = NULL);
+  double dtw(DtwParm& q_parm, DtwParm& d_parm, void *dTheta);
+
+  void showMsg(size_t iteration) {
+    printf("iteration "BLUE"%lu"COLOREND"\n", iteration);
+  }
+protected:
+  size_t _dim;
+  float _intra_inter_weight;
+  float _learning_rate;
+  string _model_output_path;
 };
 
-namespace dtwdiag {
-  double dtw(string f1, string f2, vector<double> *dTheta = NULL);
+float dnn_fn(const float* x, const float* y, const int size);
 
-  void validation();
-  void calcObjective(const vector<tsample>& samples);
-  void train(size_t batchSize, float intra_inter_weight, string theta_output);
-  void __train__(const vector<tsample>& samples, float intra_inter_weight = 1);
+class dtwdnn : public dtw_model {
+public:
+  dtwdnn(size_t dim,
+	 float weight,
+	 float learning_rate,
+	 size_t nHiddenLayer,
+	 size_t nHiddenNodes, 
+	 string model_output_path = "data/dtwdnn.model/"): 
+    dtw_model(dim, weight, learning_rate, model_output_path),
+    _nHiddenLayer(nHiddenLayer),
+    _nHiddenNodes(nHiddenNodes) {
+      this->initModel();
+    }
 
-  void updateTheta(vector<double>& theta, vector<double>& delta);
+  virtual void initModel();
+  virtual void __train__(const vector<tsample>& samples);
+  virtual void train(Corpus& corpus, size_t batchSize);
+  virtual void validation(Corpus& corpus);
+  virtual VectorDistFn getDistFn();
+
+  virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
+
+  static Model& getInstance() {
+    static Model _model;
+    return _model;
+  }
+
+private:
+  size_t _nHiddenLayer;
+  size_t _nHiddenNodes;
+  size_t _learningRate;
+};
+
+class dtwdiag : public dtw_model {
+public:
+  dtwdiag(size_t dim,
+	  float weight,
+	  float learning_rate,
+	  string theta_output = ".theta.restore"):
+    dtw_model(dim, weight, learning_rate, theta_output) {
+      this->initModel(); 
+    }
+
+  virtual void initModel();
+  virtual void validation(Corpus& corpus);
+  virtual void __train__(const vector<tsample>& samples);
+  virtual void train(Corpus& corpus, size_t batchSize);
+
+  virtual VectorDistFn getDistFn();
+
+  virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
+
+  void updateTheta(vector<double>& delta);
   void saveTheta(string filename);
 
-  void initModel(bool resume, size_t feat_dim);
-
-  // feature dimension. Ex: dim = 39 for mfcc
-  extern size_t dim;
+private:
+  vector<double> _theta;
+  vector<double> _diag;
 };
 
 #define DTW_PARAM_ALIASING \
-size_t dim = dtw->getFeatureDimension();\
 double cScore = dtw->getCumulativeScore();\
 const auto& Q = dtw->getQ();\
 const auto& D = dtw->getD();\
 auto& alpha = const_cast<TwoDimArray<float>&>(dtw->getAlpha());\
 auto& beta  = const_cast<TwoDimArray<float>&>(dtw->getBeta());
-
-GRADIENT calcDeltaTheta(const CumulativeDtwRunner* dtw, Model& model);
-
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
 
 #endif // __TRAINABLE_DTW_H_
