@@ -24,7 +24,6 @@ void signalHandler(int param);
 void regSignalHandler();
 
 string scoreDir;
-vector<double> theta;
 
 int main (int argc, char* argv[]) {
   
@@ -37,7 +36,7 @@ int main (int argc, char* argv[]) {
   cmdParser
     .addGroup("Distance measure options")
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4")
-    .add("--weight", "Specify the weight between intra-phone & inter-phone", false, "0.065382482");
+    .add("--weight", "Specify the weight between intra-phone & inter-phone", false, "1"/*"0.065382482"*/);
 
   cmdParser
     .addGroup("Training options")
@@ -67,8 +66,6 @@ int main (int argc, char* argv[]) {
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
 
-  //regSignalHandler();
-
   scoreDir = cmdParser.find("-d") + "/";
   exec("mkdir -p " + scoreDir);
 
@@ -78,8 +75,6 @@ int main (int argc, char* argv[]) {
   size_t batchSize  = str2int(cmdParser.find("--batch-size"));
   size_t N	    = str2int(cmdParser.find("-n"));
   string MFCC_DIR   = cmdParser.find("--mfcc-root");
-
-  SubCorpus::setMfccDirectory(MFCC_DIR);
 
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
@@ -100,24 +95,25 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
-  mylog(lr);
+  SubCorpus::setMfccDirectory(MFCC_DIR);
+  Corpus corpus("data/phones.txt");
 
   if (m == "dnn") {
     dtwdnn dnn(feat_dim, intra_inter_weight, lr, nHiddenLayer, nHiddenNodes);
 
     if (phase == "validate")
-      dnn.validation();
+      dnn.validation(corpus);
     else if (phase == "train")
-      dnn.train(batchSize);
+      dnn.train(corpus, batchSize);
   }
   else if (m == "diag") {
 
     dtwdiag diag(feat_dim, intra_inter_weight, lr, thetaFilename);
 
     if (phase == "validate")
-      diag.validation();
+      diag.validation(corpus);
     else if (phase == "train")
-      diag.train(batchSize);
+      diag.train(corpus, batchSize);
   }
 
   profile.toc();
@@ -129,9 +125,7 @@ void signalHandler(int param) {
   cout << RED "[Interrupted]" COLOREND << " aborted by user." << endl;
   cout << ORANGE "[Logging]" COLOREND << " saving configuration and experimental results..." << endl;
 
-  //dtwdiag::saveTheta();
   cout << GREEN "[Done]" COLOREND << endl;
-
   exit(-1);
 }
 
