@@ -112,8 +112,8 @@ Matrix2D<double> statistics(const Array<string>& phones) {
 void computeBetweenPhoneDistance(const Array<string>& phones, const string& MFCC_DIR, size_t N, const string& score_dir) {
   vector<Array<string> > lists(phones.size());
 
-  const size_t MAX_STATIONARY_ITR = 1000;
-  size_t nItrStationary = 0;
+  // const size_t MAX_STATIONARY_ITR = 1000;
+  // size_t nItrStationary = 0;
 
   foreach (i, lists)
     lists[i] = Array<string>("data/train/list/" + int2str(i) + ".list");

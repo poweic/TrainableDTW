@@ -37,7 +37,6 @@ void saveFeatureArchiveAsHtk(const string& featArk) {
 
   FILE* fptr = fopen(featArk.c_str(), "r");
   VulcanUtterance vUtterance;
-  int counter = 0;
   while (vUtterance.LoadKaldi(fptr)) {
     const FeatureSeq& fs = vUtterance._feature;
     string docId = vUtterance.fid();

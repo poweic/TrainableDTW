@@ -35,7 +35,7 @@ public:
   virtual void __train__(const vector<tsample>& samples) = 0;
   virtual void train(Corpus& corpus, size_t batchSzie) = 0;
   virtual void validation(Corpus& corpus) = 0;
-  virtual const VectorDistFn& getDistFn() = 0;
+  virtual VectorDistFn getDistFn() = 0;
 
   virtual void calcObjective(const vector<tsample>& samples);
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) = 0;
@@ -43,13 +43,13 @@ public:
   double dtw(string f1, string f2, void* dTheta = NULL);
   double dtw(DtwParm& q_parm, DtwParm& d_parm, void *dTheta);
 
-  void showMsg(int iteration) {
+  void showMsg(size_t iteration) {
     printf("iteration "BLUE"%lu"COLOREND"\n", iteration);
   }
 protected:
-  float _learning_rate;
-  float _intra_inter_weight;
   size_t _dim;
+  float _intra_inter_weight;
+  float _learning_rate;
   string _model_output_path;
 };
 
@@ -73,7 +73,7 @@ public:
   virtual void __train__(const vector<tsample>& samples);
   virtual void train(Corpus& corpus, size_t batchSize);
   virtual void validation(Corpus& corpus);
-  virtual const VectorDistFn& getDistFn();
+  virtual VectorDistFn getDistFn();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
 
@@ -103,7 +103,7 @@ public:
   virtual void __train__(const vector<tsample>& samples);
   virtual void train(Corpus& corpus, size_t batchSize);
 
-  virtual const VectorDistFn& getDistFn();
+  virtual VectorDistFn getDistFn();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
 
@@ -116,7 +116,6 @@ private:
 };
 
 #define DTW_PARAM_ALIASING \
-size_t dim = dtw->getFeatureDimension();\
 double cScore = dtw->getCumulativeScore();\
 const auto& Q = dtw->getQ();\
 const auto& D = dtw->getD();\

@@ -32,17 +32,16 @@ void Bhattacharyya::setDiagFromFile(const string& filename) {
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 
-  /*for (int i = 0; i < size; ++i)
+  for (int i = 0; i < size; ++i)
     ret += a[i] * b[i] * Bhattacharyya::_diag[i];
   ret = -log(ret);
-  return ret;*/
+  return ret;
 
-  for (int i = 0; i < size; ++i)
+  /*for (int i = 0; i < size; ++i)
     ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
     //ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
   ret = sqrt(ret);
-
-  return ret;
+  return ret;*/
 }
 
 vector<double> Bhattacharyya::operator() (const float* x, const float* y) const {
@@ -53,14 +52,14 @@ vector<double> Bhattacharyya::operator() (const float* x, const float* y) const 
   if (d == 0)
     return partial;
 
-  /*foreach (i, partial)
+  foreach (i, partial)
     partial[i] = -exp(d) * x[i] * y[i];
-  return partial;*/
+  return partial;
 
-  float c = (float) 1.0 / d / 2;
+  /*float c = (float) 1.0 / d / 2;
   foreach (i, partial)
     partial[i] = pow(x[i] - y[i], 2) * c; // * d_sigmoid(Bhattacharyya::_diag[k]);
-  return partial;
+  return partial;*/
 }
 
 // ====================================================================

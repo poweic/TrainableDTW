@@ -25,10 +25,10 @@ INCLUDE= -I include/ \
 #-I $(UGOC_ROOT)/libfeature/include \
 #-I $(UGOC_ROOT)/libutility/include \
 
-CPPFLAGS= -std=c++0x -w -fstrict-aliasing $(CFLAGS) $(INCLUDE)
+CPPFLAGS= -std=c++0x -Wall -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
-SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp ipc.cpp archive_io.cpp blas.cpp 
-EXAMPLE_PROGRAM=thrust_example ipc_example dnn_example
+SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp archive_io.cpp blas.cpp #ipc.cpp 
+EXAMPLE_PROGRAM=thrust_example dnn_example #ipc_example 
 EXECUTABLES=train extract htk-to-kaldi kaldi-to-htk calc-acoustic-similarity pair-wise-dtw #$(EXAMPLE_PROGRAM) test 
  
 .PHONY: debug all o3 example

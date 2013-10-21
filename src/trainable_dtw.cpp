@@ -8,7 +8,7 @@ void dtw_model::calcObjective(const vector<tsample>& samples) {
     if (cscore == float_inf)
       continue;
     bool positive = samples[i].second;
-    obj += (positive) ? cscore : (-cscore);
+    obj += (positive) ? cscore : (-_intra_inter_weight * cscore);
   }
 
   printf("%.8f\n", obj);
@@ -42,8 +42,8 @@ double dtw_model::dtw(string f1, string f2, void* dTheta) {
 // +===== DTW with distance metric being Deep Nerual Network  =====+
 // +===============================================================+
 
-const VectorDistFn& dtwdnn::getDistFn() {
-  return dnn_fn;
+VectorDistFn dtwdnn::getDistFn() {
+  return ::dnn_fn;
 }
 
 float dnn_fn(const float* x, const float* y, const int size) {
@@ -133,8 +133,8 @@ void dtwdnn::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
   if (cScore == 0 || cScore == float_inf)
     return;
 
-  range(i, dtw->qLength()) {
-    range(j, dtw->dLength()) {
+  for (int i=0; i<dtw->qLength(); ++i) {
+    for (int j=0; j< dtw->dLength(); ++j) {
       const float* qi = Q[i], *dj = D[j];
       double coeff = alpha(i, j) + beta(i, j) - cScore;
       coeff = exp(SMIN::eta * coeff);
@@ -150,7 +150,7 @@ void dtwdnn::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
 // +===== DTW with distance metric being 39-dim diagonal Bhattacharyya =====+
 // +========================================================================+
 
-const VectorDistFn& dtwdiag::getDistFn() {
+VectorDistFn dtwdiag::getDistFn() {
   return Bhattacharyya::fn;
 }
 
@@ -162,8 +162,6 @@ void dtwdiag::__train__(const vector<tsample>& samples) {
     auto cscore = dtw_model::dtw(samples[i].first.first, samples[i].first.second, (void*) &ddTheta);
     if (cscore == float_inf)
       continue;
-
-    warnNAN(ddTheta[0]);
 
     bool positive = samples[i].second;
     dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
@@ -233,16 +231,15 @@ void dtwdiag::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
     return;
 
   Bhattacharyya gradient;
-  size_t WND_SIZE = CumulativeDtwRunner::getWndSize();
 
   //const double MIN_THRES = -105;
   const double MIN_THRES = -8;
 
-  range(i, dtw->qLength()) {
-    range(j, dtw->dLength()) {
+  for (int i=0; i<dtw->qLength(); ++i) {
+    for (int j=0; j< dtw->dLength(); ++j) {
 
 #ifdef DTW_SLOPE_CONSTRAINT
-      if ( abs(i - j) > WND_SIZE )
+      if ( abs(i - j) > CumulativeDtwRunner::getWndSize() )
 	continue;
 #endif
       const float* qi = Q[i], *dj = D[j];

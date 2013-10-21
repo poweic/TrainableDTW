@@ -7,7 +7,6 @@ size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone>
 
   FILE* fptr = fopen(featArk.c_str(), "r");
   VulcanUtterance vUtterance;
-  int counter = 0;
   while (vUtterance.LoadKaldi(fptr)) {
 
     string docId = vUtterance.fid();
@@ -51,7 +50,7 @@ void loadFeatureArchive(string filename, float* &data, unsigned int* &offset, in
 
   offset = new unsigned int[N + 1];
   offset[0] = 0;
-  for (size_t i=1; i<N+1; ++i) {
+  for (int i=1; i<N+1; ++i) {
     size_t prevLength = featureSeqs[i-1].size();
     offset[i] = offset[i-1] + prevLength * dim;
   }
@@ -59,14 +58,14 @@ void loadFeatureArchive(string filename, float* &data, unsigned int* &offset, in
   size_t totalLength = offset[N];
   data = new float[totalLength];
 
-  range (i, N) { 
+  for (int i=0; i<N; ++i) {
     unsigned int begin = offset[i];
     unsigned int  end  = offset[i+1];
     float* d = &data[begin];
     int length = (end - begin) / dim;
 
-    range (j, length)
-      range (k, dim)
+    for (int j=0; j<length; ++j) 
+      for (int k=0; k<dim; ++k)
 	d[j * dim + k] = featureSeqs[i][j]._data->data[k]; 
   }
 }
@@ -129,15 +128,15 @@ int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& ph
     string docId = substring[0];
     phoneAlignment += docId + " ";
 
-    size_t prevPhoneId = -1;
-    size_t prevStateId = -1;
+    int prevPhoneId = -1;
+    int prevStateId = -1;
     int nFrame = 0;
 
     for (size_t j=1; j<substring.size(); ++j) {
-      size_t transID = str2int(substring[j]);
-      size_t phoneId = vHmm.GetPhoneForTransId(transID);
-      size_t stateId = vHmm.GetStateForTransId(transID);
-      size_t c = vHmm.GetClassForTransId(transID);
+      int transID = str2int(substring[j]);
+      int phoneId = vHmm.GetPhoneForTransId(transID);
+      int stateId = vHmm.GetStateForTransId(transID);
+      //size_t c = vHmm.GetClassForTransId(transID);
 
       // Find a new phone !! Either because different phoneId or a back-transition of state in a HMM
       if (phoneId != prevPhoneId || (phoneId == prevPhoneId && stateId < prevStateId) ) {
@@ -159,7 +158,7 @@ int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& ph
     }
     phoneAlignment += "\n";
     
-    const vector<Phone>& p = phoneLabels[docId];
+    //const vector<Phone>& p = phoneLabels[docId];
 
     documents.push_back(substring[0]);
     lengths.push_back(substring.size() - 1);
