@@ -105,7 +105,11 @@ void dtw_model::train(Corpus& corpus, size_t batchSize) {
   range (i, MAX_ITERATION) {
     showMsg(i);
 
+    string msg = "Batch updates (" + int2str(nBatch) + " batches in total)";
+    ProgressBar pbar;
     range (j, nBatch) {
+      pbar.refresh(j, nBatch, int2str(j) + "-th " + msg);
+
       size_t begin = batchSize * j;
       size_t end   = batchSize * (j+1);
       __train__(samples, begin, end);
@@ -157,16 +161,14 @@ float dnn_fn(const float* x, const float* y, const int size) {
 }
 
 void dtwdnn::__train__(const vector<tsample>& samples, size_t begin, size_t end) {
-  perf::Timer timer;
-  timer.start();
-
   Model &model = getInstance();
   GRADIENT dTheta, ddTheta;
   model.getEmptyGradient(dTheta);
   model.getEmptyGradient(ddTheta);
 
   ProgressBar pbar("Calculating gradients (feed forward + back propagate)");
-  foreach (i, samples) {
+
+  for (size_t i=begin; i<end; ++i) {
     pbar.refresh(i, samples.size());
 
     auto cscore = dtw_model::dtw(samples[i].first.first, samples[i].first.second, (void*) &ddTheta);
@@ -179,9 +181,17 @@ void dtwdnn::__train__(const vector<tsample>& samples, size_t begin, size_t end)
 
   dTheta /= (double) samples.size();
   this->updateTheta((void*) &dTheta);
+}
 
-  timer.stop();
-  printf("Took "BLUE"%.4f"COLOREND" ms per update\n", timer.getTime());
+void dtwdnn::getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) {
+  static GRADIENT dTheta;
+  static GRADIENT ddTheta;
+  Model &model = getInstance();
+  model.getEmptyGradient(dTheta);
+  model.getEmptyGradient(ddTheta);
+
+  dThetaPtr  = (void*) &dTheta;
+  ddThetaPtr = (void*) &ddTheta;
 }
 
 void dtwdnn::updateTheta(void* dThetaPtr) {
@@ -246,7 +256,7 @@ void dtwdiag::__train__(const vector<tsample>& samples, size_t begin, size_t end
   vector<double> dTheta(_dim);
   vector<double> ddTheta(_dim);
 
-  foreach (i, samples) {
+  for (size_t i=begin; i<end; ++i) {
     auto cscore = dtw_model::dtw(samples[i].first.first, samples[i].first.second, (void*) &ddTheta);
     if (cscore == float_inf)
       continue;
@@ -257,6 +267,15 @@ void dtwdiag::__train__(const vector<tsample>& samples, size_t begin, size_t end
 
   dTheta /= (double) samples.size();
   this->updateTheta((void*) &dTheta);
+}
+
+void dtwdiag::getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) {
+  static vector<double> dTheta(_dim);
+  static vector<double> ddTheta(_dim);
+
+  dThetaPtr  = (void*) &dTheta;
+  ddThetaPtr = (void*) &ddTheta;
+
 }
 
 void dtwdiag::updateTheta(void* dThetaPtr) {

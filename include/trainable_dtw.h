@@ -38,6 +38,8 @@ public:
   virtual void selftest(Corpus& corpus);
   virtual VectorDistFn getDistFn() = 0;
 
+  virtual void getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) = 0;
+
   virtual void saveModel() = 0;
 
   virtual double calcObjective(const vector<tsample>& samples);
@@ -79,6 +81,7 @@ public:
 
   virtual void saveModel();
 
+  virtual void getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr);
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
   virtual void updateTheta(void* dThetaPtr);
 
@@ -98,7 +101,7 @@ public:
   dtwdiag(size_t dim,
 	  float weight,
 	  float learning_rate,
-	  string theta_output = ".theta.restore"):
+	  string theta_output = ".dTheta.restore"):
     dtw_model(dim, weight, learning_rate, theta_output) {
       this->initModel(); 
     }
@@ -108,6 +111,7 @@ public:
 
   virtual VectorDistFn getDistFn();
 
+  virtual void getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr);
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
   virtual void updateTheta(void* dThetaPtr);
 
