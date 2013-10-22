@@ -15,7 +15,7 @@ void dtw_model::validate(Corpus& corpus) {
   double diff = obj - objective;
   double improveRate = abs(diff / objective);
 
-  printf("objective = %.6e \t prev-objective = %.6e \n", obj, objective);
+  printf("objective = %.7f \t prev-objective = %.7f \n", obj, objective);
   printf("improvement rate on dev-set of size %lu = %.6e ", samples.size(), improveRate);
   printf(", still "GREEN"%.0f"COLOREND" times of threshold \n", improveRate / SOFT_THRESHOLD);
 
@@ -290,8 +290,7 @@ void dtwdiag::updateTheta(void* dThetaPtr) {
   vector<double>& theta = Bhattacharyya::getDiag();
 
   foreach (i, theta)
-    theta[i] += _learning_rate * delta[i];
-    // theta[i] -= _learning_rate * delta[i];
+    theta[i] -= _learning_rate * delta[i];
 
   theta = max(0, theta);
   // theta = min(1, theta);
@@ -307,7 +306,7 @@ void dtwdiag::updateTheta(void* dThetaPtr) {
     doPause();
   }
 
-  // normalize(theta);
+  Bhattacharyya::updateNormalizer();
 }
 
 void dtwdiag::saveModel() {
@@ -342,14 +341,12 @@ void dtwdiag::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
 	continue;
 #endif
       const float* qi = Q[i], *dj = D[j];
-      double coeff = SMIN::eta * (alpha(i, j) + beta(i, j) - cScore);
+      double coeff = alpha(i, j) + beta(i, j) - cScore;
 
-      if (coeff < MIN_THRES)
+      if (SMIN::eta * coeff < MIN_THRES)
 	continue;
 
-      //if (exp(coeff) > 1e+20) { mylog(alpha(i, j)); mylog(beta(i, j)); mylog(cScore); mylog(coeff); doPause(); }
-
-      coeff = exp(coeff);
+      coeff = exp(SMIN::eta * coeff);
 
       if (coeff != coeff)
 	cout << "coeff is nan" << endl;

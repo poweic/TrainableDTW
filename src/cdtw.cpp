@@ -9,7 +9,7 @@ using namespace DtwUtil;
 #pragma message ORANGE"Head-to-head, tail-to-tail on DTW is disabled."COLOREND
 #endif
 
-double SMIN::eta=+2;
+double SMIN::eta=-2;
 
 inline double SMIN::eval(double x, double y, double z) {
   double s = eta;
@@ -65,7 +65,12 @@ float Bhattacharyya::fn(const float* a, const float* b, const int size) {
 
   for (int i = 0; i < size; ++i)
     ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
-  return -sqrt(ret) + _normalizer;
+
+  // FIXME After add _normalizer, the objective function increases
+  // ( in the opposite direction of minimization of distance)
+  // When the _normalizer is removed, the obj is descreased again.
+  // Maybe there're something wrong with the calculation of _normalizer.
+  return sqrt(ret) - _normalizer;
 }
 
 vector<double> Bhattacharyya::operator() (const float* x, const float* y) const {
@@ -80,8 +85,10 @@ vector<double> Bhattacharyya::operator() (const float* x, const float* y) const 
     partial[i] = -exp(d) * x[i] * y[i];
   return partial;*/
 
+  // Note: minus sign is already from "d",
+  //	   no need to add minus sign again.
   foreach (i, partial)
-    partial[i] = -pow(x[i] - y[i], 2) / (2 * d) + 0.5 / _diag[i];
+    partial[i] = pow(x[i] - y[i], 2) / (2 * d) - 0.5 / _diag[i];
   return partial;
 }
 
