@@ -13,7 +13,6 @@
 #endif
 
 #include <cdtw.h>
-
 #include <dnn.h>
 #include <corpus.h>
 #include <perf.h>

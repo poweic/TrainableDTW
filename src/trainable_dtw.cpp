@@ -6,7 +6,7 @@ void dtw_model::validate(Corpus& corpus) {
   static vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
   static double objective = 0;
   static bool aboutToStop = false;
-  static const double SOFT_THRESHOLD = 2e-7;
+  static const double SOFT_THRESHOLD = 2e-6;
   static const double HARD_THRESHOLD = SOFT_THRESHOLD * 0.1;
   static size_t MIN_ITERATION = 128;
   static size_t itr = 0;
@@ -94,7 +94,7 @@ void dtw_model::train(Corpus& corpus, size_t batchSize) {
 
   size_t nBatch = 100000 / batchSize;
   size_t nTrainingSamples = nBatch * batchSize;
-  const size_t MAX_ITERATION = 1000;
+  const size_t MAX_ITERATION = 1024;
   vector<tsample> samples = corpus.getSamples(nTrainingSamples);
 
   // Random Shuffle for 10 times 
