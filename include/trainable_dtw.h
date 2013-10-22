@@ -32,7 +32,7 @@ public:
     _model_output_path(model_output_path) {}
 
   virtual void initModel() = 0;
-  virtual void __train__(const vector<tsample>& samples) = 0;
+  virtual void __train__(const vector<tsample>& samples, size_t begin, size_t end) = 0;
   virtual void train(Corpus& corpus, size_t batchSzie);
   virtual void validate(Corpus& corpus);
   virtual void selftest(Corpus& corpus);
@@ -42,6 +42,7 @@ public:
 
   virtual double calcObjective(const vector<tsample>& samples);
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) = 0;
+  virtual void updateTheta(void* dThetaPtr) = 0;
 
   double dtw(string f1, string f2, void* dTheta = NULL);
   double dtw(DtwParm& q_parm, DtwParm& d_parm, void *dTheta);
@@ -73,13 +74,13 @@ public:
     }
 
   virtual void initModel();
-  virtual void __train__(const vector<tsample>& samples);
-  // virtual void train(Corpus& corpus, size_t batchSize);
+  virtual void __train__(const vector<tsample>& samples, size_t begin, size_t end);
   virtual VectorDistFn getDistFn();
 
   virtual void saveModel();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
+  virtual void updateTheta(void* dThetaPtr);
 
   static Model& getInstance() {
     static Model _model;
@@ -103,14 +104,12 @@ public:
     }
 
   virtual void initModel();
-  virtual void __train__(const vector<tsample>& samples);
-  //virtual void train(Corpus& corpus, size_t batchSize);
+  virtual void __train__(const vector<tsample>& samples, size_t begin, size_t end);
 
   virtual VectorDistFn getDistFn();
 
   virtual void calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr);
-
-  void updateTheta(vector<double>& delta);
+  virtual void updateTheta(void* dThetaPtr);
 
   virtual void saveModel();
 };
