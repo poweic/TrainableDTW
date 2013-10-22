@@ -18,7 +18,6 @@ using namespace DtwUtil;
 using namespace std;
 
 //void initModel(Model& model, size_t feat_dim, size_t nLayer, size_t nHiddenNodes, float lr);
-void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile);
 Array<string> getPhoneList(string filename);
 void signalHandler(int param);
 void regSignalHandler();
@@ -30,7 +29,7 @@ int main (int argc, char* argv[]) {
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options")
-    .add("-p", "Choose either \"selftest\", \"train\" or \"evaluate\".")
+    .add("-p", "Choose either \"selftest\", \"train\".")
     .add("--phone-mapping", "The mapping of phones", false, "data/phones.txt");
 
   cmdParser
@@ -49,7 +48,7 @@ int main (int argc, char* argv[]) {
   cmdParser
     .addGroup("Training Corpus options:")
     .add("--feat-dim", "dimension of feature vector (ex: 39 for mfcc)", false, "39")
-    .add("--mfcc-root", "root directory of MFCC files", false, "data/mfcc/");
+    .add("--feat-dir", "root directory of feature files ex: data/mfcc/", false, "/share/mlp_posterior/gaussian_posterior_noprior_no_log/");
 
   cmdParser
     .addGroup("Deep Neural Network options:")
@@ -74,7 +73,7 @@ int main (int argc, char* argv[]) {
 
   size_t batchSize	  = str2int(cmdParser.find("--batch-size"));
   size_t N	    	  = str2int(cmdParser.find("-n"));
-  string MFCC_DIR   	  = cmdParser.find("--mfcc-root");
+  string feat_dir   	  = cmdParser.find("--feat-dir");
 
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
@@ -95,8 +94,7 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
-  SubCorpus::setMfccDirectory(MFCC_DIR);
-  Corpus corpus("data/phones.txt");
+  Corpus corpus("data/phones.txt", feat_dir);
 
   if (m == "dnn") {
     dtwdnn dnn(feat_dim, intra_inter_weight, lr, nHiddenLayer, nHiddenNodes);

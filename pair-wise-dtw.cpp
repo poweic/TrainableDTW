@@ -25,7 +25,7 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance options")
-    .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"", false, "eu")
+    .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"")
     .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
   
@@ -84,11 +84,15 @@ distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) 
     dynamic_cast<mahalanobis_fn*>(dist)->setDiag(theta_fn);
   }
   else if (dist_type == "lip") {
-    dist = new weighted_inner_norm_fn(dim);
+    dist = new log_inner_product_fn(dim);
     dynamic_cast<mahalanobis_fn*>(dist)->setDiag(theta_fn);
   }
-  else
+  else if (dist_type == "eu")
     dist = new euclidean_fn;
+  else {
+    fprintf(stderr, "--type unspecified or unknown\n");
+    exit(-1);
+  }
 
   return dist;
 }

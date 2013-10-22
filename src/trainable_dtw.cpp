@@ -6,7 +6,7 @@ void dtw_model::validate(Corpus& corpus) {
   static vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
   static double objective = 0;
   static bool aboutToStop = false;
-  static const double SOFT_THRESHOLD = 1e-5;
+  static const double SOFT_THRESHOLD = 2e-7;
   static const double HARD_THRESHOLD = SOFT_THRESHOLD * 0.1;
   static size_t MIN_ITERATION = 128;
   static size_t itr = 0;
@@ -20,11 +20,14 @@ void dtw_model::validate(Corpus& corpus) {
   printf(", still "GREEN"%.0f"COLOREND" times of threshold \n", improveRate / SOFT_THRESHOLD);
 
   if (itr > MIN_ITERATION) {
+    if (improveRate != improveRate)
+      exit(-1);
+    
     if (improveRate < HARD_THRESHOLD) {
       printf("\nObjective function on dev-set is no longer decreasing...\n");
       printf("Training process "GREEN"DONE"COLOREND"\n");
-      doPause();
-      exit(-1);
+      // doPause();
+      exit(0);
     }
     else if (aboutToStop || improveRate < SOFT_THRESHOLD) {
       aboutToStop = true;
@@ -88,6 +91,19 @@ void dtw_model::selftest(Corpus& corpus) {
 }
 
 void dtw_model::train(Corpus& corpus, size_t batchSize) {
+
+  // TODO
+  // vector<tsample> samples = corpus.getSamples(trainSize);
+  // for example: trainSize = 100,000 
+  // Use `seq 0 100000 | shuf` to generate random permutation
+  // for itr = 1 ~ ... 
+  //   for batch = 1 ~ ... (all corpus must be trained)
+  //   end
+  //   
+  //   if dev-set is not improving anymore
+  //	 break;
+  //   end
+  // end
 
   size_t nBatch = corpus.size() / batchSize;
   cout << "# of batches = " << nBatch << endl;

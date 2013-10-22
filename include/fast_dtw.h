@@ -75,10 +75,10 @@ private:
   mahalanobis_fn();
 };
 
-class weighted_inner_norm_fn : public mahalanobis_fn {
+class log_inner_product_fn : public mahalanobis_fn {
 public:
 
-  weighted_inner_norm_fn(size_t dim): mahalanobis_fn(dim) {}
+  log_inner_product_fn(size_t dim): mahalanobis_fn(dim) {}
 
   virtual float operator() (const float* x, const float* y, size_t dim) {
     float d = 0;

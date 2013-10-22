@@ -26,11 +26,11 @@ public:
 
   bool isIntraPhone() const;
 
-  static void setListDirectory(const string& list_directory);
-  static void setMfccDirectory(const string& mfcc_directory);
+  static void setListDirectory(string list_directory);
+  static void setFeatureDirectory(string mfcc_directory);
 
   static string LIST_DIRECTORY;
-  static string MFCC_DIRECTORY;
+  static string FEAT_DIRECTORY;
 
   size_t _p1;
   size_t _p2;
@@ -50,7 +50,9 @@ typedef std::pair<ppair, bool> tsample;
 
 class Corpus: public ICorpus<tsample> {
 public:
-  Corpus(string filename);
+  Corpus(string filename,
+	 string feat_dir = "data/mfcc/",
+	 string list_dir = "data/train/list/");
 
   Array<string> getPhoneList(string filename);
 

@@ -4,8 +4,8 @@
 #include <math_ext.h>
 using namespace std;
 
-string SubCorpus::MFCC_DIRECTORY = "data/mfcc/";
-string SubCorpus::LIST_DIRECTORY = "data/train/list/";
+string SubCorpus::FEAT_DIRECTORY = "";
+string SubCorpus::LIST_DIRECTORY = "";
 
 SubCorpus::SubCorpus() {
 }
@@ -29,8 +29,8 @@ vector<ppair> SubCorpus::getSamples(size_t n) {
     for(size_t j=jStart; j<_list2.size(); ++j) {
       if (++c > n) break;
 
-      string f1 = MFCC_DIRECTORY + _phone1 + "/" + _list1[i];
-      string f2 = MFCC_DIRECTORY + _phone2 + "/" + _list2[j];
+      string f1 = FEAT_DIRECTORY + _phone1 + "/" + _list1[i];
+      string f2 = FEAT_DIRECTORY + _phone2 + "/" + _list2[j];
       samples.push_back(ppair(f1, f2));
     }
     if (c++ > n) break;
@@ -56,16 +56,20 @@ void SubCorpus::_init() {
     _size = _list1.size() * _list2.size();
 }
 
-void SubCorpus::setListDirectory(const string& list_directory) {
+void SubCorpus::setListDirectory(string list_directory) {
   SubCorpus::LIST_DIRECTORY = list_directory;
 }
-void SubCorpus::setMfccDirectory(const string& mfcc_directory) {
-  SubCorpus::MFCC_DIRECTORY = mfcc_directory;
+void SubCorpus::setFeatureDirectory(string mfcc_directory) {
+  SubCorpus::FEAT_DIRECTORY = mfcc_directory;
 }
 
 
 // ==============================================
-Corpus::Corpus(string filename) {
+Corpus::Corpus(string filename, string feat_dir, string list_dir) {
+
+  SubCorpus::setListDirectory(list_dir);
+  SubCorpus::setFeatureDirectory(feat_dir);
+
   _phones = this->getPhoneList(filename);
 
   size_t size = 0;
