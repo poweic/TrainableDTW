@@ -42,7 +42,7 @@ function recalcAS() {
 
   #old_bin=./calc-acoustic-similarity
   #echo ${old_bin} -d $dir -o $mat $dtw_options --list=$list ${opts[@]}
-  ${bin} --ark=$feature -o $mat ${opts[@]} --type=lip
+  ${bin} --ark=$feature -o $mat ${opts[@]} --type=ma
   
   shopt -u extglob
 }

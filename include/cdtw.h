@@ -36,7 +36,13 @@ public:
 
   static float fn(const float* a, const float* b, const int size);
   static void setDiagFromFile(const string& theta_filename);
+  static vector<double>& getDiag();
+  static void setDiag(const vector<double>& diag);
 
+  static void updateNormalizer();
+
+  static double _normalizer;
+private:
   static vector<double> _diag;
 };
 

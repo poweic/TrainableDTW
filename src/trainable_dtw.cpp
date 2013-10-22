@@ -15,7 +15,7 @@ void dtw_model::validate(Corpus& corpus) {
   double diff = obj - objective;
   double improveRate = abs(diff / objective);
 
-  printf("objective = %.4f \t prev-objective = %.4f \n", obj, objective);
+  printf("objective = %.6e \t prev-objective = %.6e \n", obj, objective);
   printf("improvement rate on dev-set of size %lu = %.6e ", samples.size(), improveRate);
   printf(", still "GREEN"%.0f"COLOREND" times of threshold \n", improveRate / SOFT_THRESHOLD);
 
@@ -46,7 +46,9 @@ double dtw_model::calcObjective(const vector<tsample>& samples) {
     if (cscore == float_inf)
       continue;
     bool positive = samples[i].second;
-    obj += (positive) ? cscore : (-_intra_inter_weight * cscore);
+    if (positive)
+      obj += cscore;
+    // obj += (positive) ? cscore : (-_intra_inter_weight * cscore);
   }
 
   return obj;
@@ -176,7 +178,9 @@ void dtwdnn::__train__(const vector<tsample>& samples, size_t begin, size_t end)
       continue;
 
     bool positive = samples[i].second;
-    dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
+    if (positive)
+      dTheta += ddTheta;
+    // dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
   }
 
   dTheta /= (double) samples.size();
@@ -262,7 +266,9 @@ void dtwdiag::__train__(const vector<tsample>& samples, size_t begin, size_t end
       continue;
 
     bool positive = samples[i].second;
-    dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
+    if (positive)
+      dTheta += ddTheta;
+    // dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
   }
 
   dTheta /= (double) samples.size();
@@ -281,24 +287,36 @@ void dtwdiag::getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) {
 void dtwdiag::updateTheta(void* dThetaPtr) {
 
   vector<double>& delta = *((vector<double>*) dThetaPtr);
-  vector<double>& theta = Bhattacharyya::_diag;
+  vector<double>& theta = Bhattacharyya::getDiag();
 
   foreach (i, theta)
-    theta[i] -= _learning_rate * delta[i];
+    theta[i] += _learning_rate * delta[i];
+    // theta[i] -= _learning_rate * delta[i];
 
   theta = max(0, theta);
-  theta = min(1, theta);
+  // theta = min(1, theta);
+  
+  bool allzero = true;
+  foreach (i, theta)
+    if (theta[i] != 0)
+      allzero = false;
+
+  if (allzero) {
+    ::print(theta);
+    printf(RED"Theta is all zero!!!\n"COLOREND);
+    doPause();
+  }
 
   // normalize(theta);
 }
 
 void dtwdiag::saveModel() {
-  ext::save(Bhattacharyya::_diag, _model_output_path);
+  ext::save(Bhattacharyya::getDiag(), _model_output_path);
 }
 
 void dtwdiag::initModel() {
-  Bhattacharyya::_diag = ext::rand<double>(_dim);
-  ::print(Bhattacharyya::_diag);
+  Bhattacharyya::setDiag(ext::rand<double>(_dim));
+  ::print(Bhattacharyya::getDiag());
   cout << "feature dim = " << _dim << endl;
 }
 

@@ -34,7 +34,7 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance measure options")
-    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4")
+    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "+2")
     .add("--weight", "Specify the weight between intra-phone & inter-phone", false, "0.065382482");
 
   cmdParser
