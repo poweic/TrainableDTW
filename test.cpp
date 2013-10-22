@@ -32,31 +32,37 @@ string dir = "data/mfcc/CH_ts/";
 
 int main (int argc, char* argv[]) {
 
-  perf::Timer timer;
-  timer.start();
-
-  string fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
-  int M = 500;
-  int N = 500;
-  //float** scores = computePairwiseDTW(fn);
-  timer.stop();
-
-  printf("Elasped time: %.2f \n", timer.getTime());
+  vector<size_t> perm = randperm(100);
+  foreach (i, perm)
+    cout << perm[i] << endl;
 
   return 0;
 
-  mat m(4, 6); //("testing/matrix_lib/A.mat");
-  ext::rand(m);
-  m.print(3);
+  // perf::Timer timer;
+  // timer.start();
 
-  vector<float> v(m.getRows());
-  foreach (i, v)
-    v[i] = i;
+  // string fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
+  // int M = 500;
+  // int N = 500;
+  // //float** scores = computePairwiseDTW(fn);
+  // timer.stop();
 
-  ::print(v);
+  // printf("Elasped time: %.2f \n", timer.getTime());
 
-  mat s = m & v;
-  s.print(3);
+  // return 0;
+
+  // mat m(4, 6); //("testing/matrix_lib/A.mat");
+  // ext::rand(m);
+  // m.print(3);
+
+  // vector<float> v(m.getRows());
+  // foreach (i, v)
+  //   v[i] = i;
+
+  // ::print(v);
+
+  // mat s = m & v;
+  // s.print(3);
 
   /* vector<size_t> prior(10);
   foreach (i, prior)

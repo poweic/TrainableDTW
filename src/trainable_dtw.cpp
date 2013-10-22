@@ -83,7 +83,7 @@ void dtw_model::selftest(Corpus& corpus) {
   cout << "# of samples = " << BLUE << samples.size() << COLOREND << endl;
 
   for (size_t itr=0; itr<10000; ++itr) {
-    __train__(samples);
+    __train__(samples, 0, samples.size());
     double obj = calcObjective(samples);
     printf("%.8f\n", obj);
     saveModel();
@@ -91,6 +91,35 @@ void dtw_model::selftest(Corpus& corpus) {
 }
 
 void dtw_model::train(Corpus& corpus, size_t batchSize) {
+
+  size_t nBatch = 100000 / batchSize;
+  size_t nTrainingSamples = nBatch * batchSize;
+  const size_t MAX_ITERATION = 1000;
+  vector<tsample> samples = corpus.getSamples(nTrainingSamples);
+
+  // Random Shuffle for 10 times 
+  std::srand ( unsigned ( std::time(0) ) );
+  range (i, 10)
+    std::random_shuffle(samples.begin(), samples.end());
+
+  range (i, MAX_ITERATION) {
+    showMsg(i);
+
+    string msg = "Batch updates (" + int2str(nBatch) + " batches in total)";
+    ProgressBar pbar;
+    range (j, nBatch) {
+      pbar.refresh(j, nBatch, int2str(j) + "-th " + msg);
+
+      size_t begin = batchSize * j;
+      size_t end   = batchSize * (j+1);
+      __train__(samples, begin, end);
+      saveModel();
+    }
+
+    validate(corpus);
+  }
+
+  //vector<size_t> perm = randperm(nTrainingSamples);
 
   // TODO
   // vector<tsample> samples = corpus.getSamples(trainSize);
@@ -105,17 +134,17 @@ void dtw_model::train(Corpus& corpus, size_t batchSize) {
   //   end
   // end
 
-  size_t nBatch = corpus.size() / batchSize;
-  cout << "# of batches = " << nBatch << endl;
+  // size_t nBatch = corpus.size() / batchSize;
+  // cout << "# of batches = " << nBatch << endl;
 
-  for (size_t itr=0; itr<nBatch; ++itr) {
-    showMsg(itr);
+  // for (size_t itr=0; itr<nBatch; ++itr) {
+  //   showMsg(itr);
 
-    vector<tsample> samples = corpus.getSamples(batchSize);
-    __train__(samples);
-    saveModel();
-    validate(corpus);
-  }
+  //   vector<tsample> samples = corpus.getSamples(batchSize);
+  //   __train__(samples);
+  //   saveModel();
+  //   validate(corpus);
+  // }
 
 }
 
@@ -131,17 +160,15 @@ float dnn_fn(const float* x, const float* y, const int size) {
   return dtwdnn::getInstance().evaluate(x, y);
 }
 
-void dtwdnn::__train__(const vector<tsample>& samples) {
-  perf::Timer timer;
-  timer.start();
-
+void dtwdnn::__train__(const vector<tsample>& samples, size_t begin, size_t end) {
   Model &model = getInstance();
   GRADIENT dTheta, ddTheta;
   model.getEmptyGradient(dTheta);
   model.getEmptyGradient(ddTheta);
 
   ProgressBar pbar("Calculating gradients (feed forward + back propagate)");
-  foreach (i, samples) {
+
+  for (size_t i=begin; i<end; ++i) {
     pbar.refresh(i, samples.size());
 
     auto cscore = dtw_model::dtw(samples[i].first.first, samples[i].first.second, (void*) &ddTheta);
@@ -152,11 +179,26 @@ void dtwdnn::__train__(const vector<tsample>& samples) {
     dTheta = positive ? (dTheta + ddTheta) : (dTheta - _intra_inter_weight * ddTheta);
   }
 
-  dTheta /= samples.size();
-  model.updateParameters(dTheta);
+  dTheta /= (double) samples.size();
+  this->updateTheta((void*) &dTheta);
+}
 
-  timer.stop();
-  printf("Took "BLUE"%.4f"COLOREND" ms per update\n", timer.getTime());
+void dtwdnn::getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) {
+  static GRADIENT dTheta;
+  static GRADIENT ddTheta;
+  Model &model = getInstance();
+  model.getEmptyGradient(dTheta);
+  model.getEmptyGradient(ddTheta);
+
+  dThetaPtr  = (void*) &dTheta;
+  ddThetaPtr = (void*) &ddTheta;
+}
+
+void dtwdnn::updateTheta(void* dThetaPtr) {
+  GRADIENT& dTheta = *((GRADIENT*) dThetaPtr);
+  Model& model = getInstance();
+
+  model.updateParameters(dTheta);
 }
 
 void dtwdnn::initModel() {
@@ -210,11 +252,11 @@ VectorDistFn dtwdiag::getDistFn() {
   return Bhattacharyya::fn;
 }
 
-void dtwdiag::__train__(const vector<tsample>& samples) {
+void dtwdiag::__train__(const vector<tsample>& samples, size_t begin, size_t end) {
   vector<double> dTheta(_dim);
   vector<double> ddTheta(_dim);
 
-  foreach (i, samples) {
+  for (size_t i=begin; i<end; ++i) {
     auto cscore = dtw_model::dtw(samples[i].first.first, samples[i].first.second, (void*) &ddTheta);
     if (cscore == float_inf)
       continue;
@@ -224,11 +266,21 @@ void dtwdiag::__train__(const vector<tsample>& samples) {
   }
 
   dTheta /= (double) samples.size();
-  updateTheta(dTheta);
+  this->updateTheta((void*) &dTheta);
 }
 
-void dtwdiag::updateTheta(vector<double>& delta) {
+void dtwdiag::getDeltaTheta(void* &dThetaPtr, void* &ddThetaPtr) {
+  static vector<double> dTheta(_dim);
+  static vector<double> ddTheta(_dim);
 
+  dThetaPtr  = (void*) &dTheta;
+  ddThetaPtr = (void*) &ddTheta;
+
+}
+
+void dtwdiag::updateTheta(void* dThetaPtr) {
+
+  vector<double>& delta = *((vector<double>*) dThetaPtr);
   vector<double>& theta = Bhattacharyya::_diag;
 
   foreach (i, theta)
@@ -236,8 +288,6 @@ void dtwdiag::updateTheta(vector<double>& delta) {
 
   theta = max(0, theta);
   theta = min(1, theta);
-
-  //Bhattacharyya::_diag = theta;
 }
 
 void dtwdiag::saveModel() {
@@ -247,10 +297,6 @@ void dtwdiag::saveModel() {
 void dtwdiag::initModel() {
   Bhattacharyya::_diag = ext::rand<double>(_dim);
   ::print(Bhattacharyya::_diag);
-  /*Bhattacharyya::_diag.resize(_dim);
-  fillwith(Bhattacharyya::_diag, 1.0);
-  _theta.resize(_dim);
-  fillwith(_theta, 1.0);*/
   cout << "feature dim = " << _dim << endl;
 }
 
