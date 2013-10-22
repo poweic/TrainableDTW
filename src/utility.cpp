@@ -31,6 +31,18 @@ vector<string> split(const string &s, char delim) {
   return split(s, delim, elems);
 }
 
+vector<size_t> randperm(size_t N) {
+  vector<size_t> perm(N);
+  string result = exec("seq 0 " + int2str(N) + " | shuf");
+
+  vector<string> numbersInStr = split(result, '\n');
+
+  foreach (i, perm)
+    perm[i] = (size_t) str2int(numbersInStr[i]);
+
+  return perm;
+}
+
 string replace_all(const string& str, const string &token, const string &s) {
   string result(str);
   size_t pos = 0;

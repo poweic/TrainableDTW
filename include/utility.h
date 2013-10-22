@@ -41,6 +41,8 @@ double str2double(const string& str);
 string getValueStr(string& str);
 string join(const vector<string>& arr);
 
+std::string exec(std::string cmd);
+
 bool isInt(string str);
 
 vector<string> split(const string &s, char delim);
@@ -82,6 +84,8 @@ T norm(const vector<T>& v) {
     sum += pow(v[i], (T) 2);
   return sqrt(sum);
 }
+
+vector<size_t> randperm(size_t N);
 
 template <typename T>
 void normalize(vector<T>& v, int type = 2) {
@@ -137,7 +141,6 @@ template <typename T> int sign(T val) {
 
 void doPause();
 
-std::string exec(std::string cmd);
 namespace bash {
   vector<string> ls(string path);
 }
