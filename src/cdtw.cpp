@@ -1,7 +1,15 @@
 #include <cdtw.h>
 using namespace DtwUtil;
 
-double SMIN::eta=-64;
+#ifdef DTW_SLOPE_CONSTRAINT
+#pragma message ORANGE"slope constraint on DTW is enabled."COLOREND
+#endif
+
+#ifdef NO_HHTT
+#pragma message ORANGE"Head-to-head, tail-to-tail on DTW is disabled."COLOREND
+#endif
+
+double SMIN::eta=-2;
 
 inline double SMIN::eval(double x, double y, double z) {
   double s = eta;

@@ -11,8 +11,8 @@ using namespace DtwUtil;
 #include <logarithmetics.h>
 #include <math_ext.h>
 
-#define SOFT_POWER 4
-//#define NO_HHTT
+// #define NO_HHTT
+// #define DTW_SLOPE_CONSTRAINT
 
 class SMIN {
 public:

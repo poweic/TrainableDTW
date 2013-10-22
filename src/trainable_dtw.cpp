@@ -6,7 +6,7 @@ void dtw_model::validate(Corpus& corpus) {
   static vector<tsample> samples = corpus.getSamples(MINIATURE_SIZE);
   static double objective = 0;
   static bool aboutToStop = false;
-  static const double SOFT_THRESHOLD = 2e-6;
+  static const double SOFT_THRESHOLD = 2e-6 * _learning_rate;
   static const double HARD_THRESHOLD = SOFT_THRESHOLD * 0.1;
   static size_t MIN_ITERATION = 128;
   static size_t itr = 0;
@@ -288,6 +288,8 @@ void dtwdiag::updateTheta(void* dThetaPtr) {
 
   theta = max(0, theta);
   theta = min(1, theta);
+
+  // normalize(theta);
 }
 
 void dtwdiag::saveModel() {

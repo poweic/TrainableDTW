@@ -6,12 +6,6 @@
 #include <utility.h>
 #include <vector>
 
-//#define DTW_SLOPE_CONSTRAINT
-
-#ifdef DTW_SLOPE_CONSTRAINT
-#pragma message ORANGE"slope constraint on DTW is enabled."COLOREND
-#endif
-
 #include <cdtw.h>
 #include <dnn.h>
 #include <corpus.h>
