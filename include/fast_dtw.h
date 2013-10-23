@@ -46,7 +46,7 @@ public:
     for (size_t i=0; i<dim; ++i)
       d += pow(x[i] - y[i], 2.0) * _diag[i];
 
-    return -sqrt(d) + _normalizer;
+    return sqrt(d) - _normalizer;
   }
 
   virtual void setDiag(string filename) {
