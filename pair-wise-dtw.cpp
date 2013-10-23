@@ -11,7 +11,9 @@ using namespace std;
 void selfTest();
 float calcError(float* s1, float* s2, int N);
 distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn);
-void normalize(float* m, int N);
+void normalize(float* m, int N, float eta);
+void setDiagToOne(float* m, int N);
+void setDiagToZero(float* m, int N);
 void print(float* m, int N);
 
 int main (int argc, char* argv[]) {
@@ -27,7 +29,10 @@ int main (int argc, char* argv[]) {
     .addGroup("Distance options")
     .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"")
     .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
-    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-4");
+    .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-2");
+
+  cmdParser
+    .addGroup("Example: ./pair-wise-dtw --ark=data/example.76.ark --type=ma --theta=exp/theta/theta.rand.good");
   
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
@@ -38,6 +43,7 @@ int main (int argc, char* argv[]) {
   bool isSelfTest   = (cmdParser.find("--self-test") == "true");
   string theta_fn   = cmdParser.find("--theta");
   string dist_type  = cmdParser.find("--type");
+  float eta	    = str2float(cmdParser.find("--eta"));
 
   if (isSelfTest)
     selfTest();
@@ -57,7 +63,8 @@ int main (int argc, char* argv[]) {
   else
     scores = computePairwiseDTW(data, offset, N, dim, *dist);
 
-  normalize(scores, N);
+  setDiagToZero(scores, N);
+  normalize(scores, N, eta);
 
   FILE* fid = (output_fn.empty()) ? stdout : fopen(output_fn.c_str(), "w");
 
@@ -97,6 +104,80 @@ distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) 
   return dist;
 }
 
+void print(float* m, int N) {
+  range (i, N) {
+    range (j, N)
+      printf("%.6f ", m[i * N + j]);
+    printf("\n");
+  }
+}
+
+float calcError(float* s1, float* s2, int N) {
+  float error = 0;
+  range (i, N)
+    range (j, N)
+      error += pow(s1[i * N + j] - s2[i * N + j], 2.0);
+
+  error /= N*N;
+  return error;
+}
+
+
+void setDiagToOne(float* m, int N) {
+  range (i, N)
+    m[i * N + i] = 1;
+}
+
+void setDiagToZero(float* m, int N) {
+  range (i, N)
+    m[i * N + i] = 0;
+}
+
+void normalize(float* m, int N, float eta) {
+  const float MIN_EXP = 12;
+
+  float min = m[0];
+  float max = m[0];
+
+  range (i, N) {
+    range (j, N) {
+      if (m[i * N + j] > max) max = m[i * N + j];
+      if (m[i * N + j] < min) min = m[i * N + j];
+    }
+  }
+
+  if (min - max == 0)
+    return;
+
+  float normalizer = MIN_EXP / (max - min) / abs(eta);
+
+  range (i, N*N)
+    m[i] = (m[i] - min) * normalizer;
+
+  range (i, N*N)
+    m[i] = exp(eta * m[i]);
+}
+
+/*void normalize(float* m, int N) {
+
+  float min = m[0];
+  float max = m[0];
+
+  range (i, N) {
+    range (j, N) {
+      if (m[i * N + j] > max) max = m[i * N + j];
+      if (m[i * N + j] < min) min = m[i * N + j];
+    }
+  }
+
+  if (min - max == 0)
+    return;
+  
+  range (i, N)
+    range (j, N)
+      m[i * N + j] = (m[i * N + j] - max) / (min - max);
+}*/
+
 void selfTest() {
   string archive_fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
 
@@ -133,41 +214,4 @@ void selfTest() {
   mylog(error);
 
   exit(1);
-}
-
-void print(float* m, int N) {
-  range (i, N) {
-    range (j, N)
-      printf("%.6f ", m[i * N + j]);
-    printf("\n");
-  }
-}
-
-float calcError(float* s1, float* s2, int N) {
-  float error = 0;
-  range (i, N)
-    range (j, N)
-      error += pow(s1[i * N + j] - s2[i * N + j], 2.0);
-
-  error /= N*N;
-  return error;
-}
-
-void normalize(float* m, int N) {
-  float min = m[0];
-  float max = m[0];
-
-  range (i, N) {
-    range (j, N) {
-      if (m[i * N + j] > max) max = m[i * N + j];
-      if (m[i * N + j] < min) min = m[i * N + j];
-    }
-  }
-
-  if (min - max == 0)
-    return;
-  
-  range (i, N)
-    range (j, N)
-      m[i * N + j] = (m[i * N + j] - max) / (min - max);
 }
