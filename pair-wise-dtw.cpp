@@ -190,7 +190,7 @@ void selfTest() {
   string archive_fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
 
   int N, dim; float* data; unsigned int* offset;
-  loadFeatureArchive(archive_fn, data, offset, N, dim); 
+  // loadFeatureArchive(archive_fn, data, offset, N, dim); 
   mylog(N);
 
   perf::Timer timer;
