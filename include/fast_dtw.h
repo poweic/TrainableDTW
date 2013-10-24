@@ -46,7 +46,7 @@ public:
     for (size_t i=0; i<dim; ++i)
       d += pow(x[i] - y[i], 2.0) * _diag[i];
 
-    return sqrt(d);
+    return sqrt(d) - _normalizer;
   }
 
   virtual void setDiag(string filename) {
@@ -56,6 +56,11 @@ public:
     vector<float> diag;
     ext::load(diag, filename);
     this->setDiag(diag);
+
+    double product = 1;
+    range (i, _dim)
+      product *= _diag[i];
+    _normalizer = 0.5 * (log(product) - _dim * log(2*PI));
   }
 
   virtual void setDiag(const vector<float>& diag) {
@@ -68,6 +73,7 @@ public:
       _diag[i] = diag[i];
   }
 
+  float _normalizer;
   float* _diag;
   size_t _dim;
 

@@ -29,7 +29,7 @@ CPPFLAGS= -std=c++0x -Wall -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
 SOURCES=utility.cpp cdtw.cpp logarithmetics.cpp corpus.cpp archive_io.cpp blas.cpp #ipc.cpp 
 EXAMPLE_PROGRAM=thrust_example dnn_example #ipc_example 
-EXECUTABLES=train extract htk-to-kaldi kaldi-to-htk calc-acoustic-similarity pair-wise-dtw norm-checker #$(EXAMPLE_PROGRAM) test 
+EXECUTABLES=train extract htk-to-kaldi kaldi-to-htk calc-acoustic-similarity pair-wise-dtw #$(EXAMPLE_PROGRAM) test 
  
 .PHONY: debug all o3 example
 all: $(EXECUTABLES) ctags
@@ -95,8 +95,6 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cu obj/trainable_dtw.o
 pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
-norm-checker: $(OBJ) norm-checker.cpp
-	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 #$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h

@@ -29,6 +29,7 @@ inline double d_sigmoid(double x) {
 
 // ====================================================================
 vector<double> Bhattacharyya::_diag(1);
+double Bhattacharyya::_normalizer(1);
 
 void Bhattacharyya::setDiagFromFile(const string& filename) {
   if (filename.empty())
@@ -37,19 +38,39 @@ void Bhattacharyya::setDiagFromFile(const string& filename) {
   ext::load<double>(_diag, filename);
 }
 
+vector<double>& Bhattacharyya::getDiag() {
+  return _diag;
+}
+
+void Bhattacharyya::setDiag(const vector<double>& diag) {
+  _diag = diag;
+  updateNormalizer();
+}
+
+void Bhattacharyya::updateNormalizer() {
+  size_t k = _diag.size();
+  double product = 1;
+  foreach (i, _diag)
+    product *= _diag[i];
+  _normalizer = 0.5 * (log(product) - k * log(2*PI));
+}
+
 float Bhattacharyya::fn(const float* a, const float* b, const int size) {
   float ret = 0.0; 
 
-  for (int i = 0; i < size; ++i)
+  /*for (int i = 0; i < size; ++i)
     ret += a[i] * b[i] * Bhattacharyya::_diag[i];
   ret = -log(ret);
-  return ret;
-
-  /*for (int i = 0; i < size; ++i)
-    ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
-    //ret += pow(a[i] - b[i], 2) * sigmoid(Bhattacharyya::_diag[i]);
-  ret = sqrt(ret);
   return ret;*/
+
+  for (int i = 0; i < size; ++i)
+    ret += pow(a[i] - b[i], 2) * Bhattacharyya::_diag[i];
+
+  // FIXME After add _normalizer, the objective function increases
+  // ( in the opposite direction of minimization of distance)
+  // When the _normalizer is removed, the obj is descreased again.
+  // Maybe there're something wrong with the calculation of _normalizer.
+  return sqrt(ret) - _normalizer;
 }
 
 vector<double> Bhattacharyya::operator() (const float* x, const float* y) const {
@@ -60,14 +81,15 @@ vector<double> Bhattacharyya::operator() (const float* x, const float* y) const 
   if (d == 0)
     return partial;
 
-  foreach (i, partial)
+  /*foreach (i, partial)
     partial[i] = -exp(d) * x[i] * y[i];
-  return partial;
-
-  /*float c = (float) 1.0 / d / 2;
-  foreach (i, partial)
-    partial[i] = pow(x[i] - y[i], 2) * c; // * d_sigmoid(Bhattacharyya::_diag[k]);
   return partial;*/
+
+  // Note: minus sign is already from "d",
+  //	   no need to add minus sign again.
+  foreach (i, partial)
+    partial[i] = pow(x[i] - y[i], 2) / (2 * d) - 0.5 / _diag[i];
+  return partial;
 }
 
 // ====================================================================
