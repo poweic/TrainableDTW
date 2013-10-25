@@ -64,7 +64,7 @@ int main (int argc, char* argv[]) {
   if (gpuEnabled)
     scores = computePairwiseDTW_in_gpu(data, offset, N, dim);
   else
-    scores = computePairwiseDTW(data, offset, N, dim, *dist);
+    scores = computePairwiseDTW(data, offset, N, dim, *dist, eta);
 
   setDiagToZero(scores, N);
 
@@ -210,7 +210,7 @@ void selfTest() {
 
   timer.reset();
   timer.start();
-  float* scores = computePairwiseDTW(data, offset, N, dim, eu);
+  float* scores = computePairwiseDTW(data, offset, N, dim, eu, -4);
   timer.stop();
   printf("Elasped time: %.2f secs\n", timer.getTime());
 

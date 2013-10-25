@@ -19,13 +19,6 @@ __global__ void pairWiseKernel(const float* f1, const float* f2, size_t rows, si
 
   int index = x * cols + y; 
   pdist[index] = euclidean(f1 + x*dim, f2 + y * dim, dim);
-
-  /*f1 += x * dim;
-  f2 += y * dim;
-  float d = 0;
-  for (int i=0; i<dim; ++i)
-    d += __pow__(f1[i] - f2[i]);
-  pdist[index] = sqrt(d);*/
 }
 
 float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
@@ -68,7 +61,7 @@ void callback(cudaStream_t stream, cudaError_t status, void* userData) {
   StreamManager::getInstance().pop_front();
 }
 
-float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn) {
+float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta) {
 
   size_t MAX_LENGTH = 0;
   range (i, N) {
@@ -83,15 +76,17 @@ float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, 
   float* scores = new float[N * N];
 
   for (int i=0; i<N; ++i) {
-    for (int j=0; j<=i; ++j) {
+
+    scores[i * N + i] = 0;
+    for (int j=0; j<i; ++j) {
       size_t length1 = (offset[i + 1] - offset[i]) / dim;
       size_t length2 = (offset[j + 1] - offset[j]) / dim;
 
       const float *f1 = data + offset[i];
       const float *f2 = data + offset[j];
 
-      pair_distance(f1, f2, length1, length2, dim, -4, pdist, fn);
-      float s = fast_dtw(pdist, length1, length2, dim, -4, alpha);
+      pair_distance(f1, f2, length1, length2, dim, eta, pdist, fn);
+      float s = fast_dtw(pdist, length1, length2, dim, eta, alpha);
       scores[i * N + j] = scores[j * N + i] = s;
     }
   }
@@ -137,7 +132,8 @@ float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, 
 
   // ===== Begin of Dynamic Time Warping =====
   for (int i=0; i<N; ++i) {
-    for (int j=0; j<=i; ++j) {
+    scores[i*N + i] = 0;
+    for (int j=0; j<i; ++j) {
 
       size_t w = (offset[i + 1] - offset[i]) / dim,
 	     h = (offset[j + 1] - offset[j]) / dim;

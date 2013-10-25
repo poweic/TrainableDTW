@@ -46,7 +46,7 @@ public:
     for (size_t i=0; i<dim; ++i)
       d += pow(x[i] - y[i], 2.0) * _diag[i];
 
-    return sqrt(d) - _normalizer;
+    return sqrt(d); // - _normalizer;
   }
 
   virtual void setDiag(string filename) {
@@ -103,8 +103,7 @@ __device__ float euclidean(const float* x, const float* y, size_t dim);
 
 __global__ void pairWiseKernel(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float* pdist);
 
-// float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim);
-float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn);
+float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta);
 float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, int N, int dim);
 
 
