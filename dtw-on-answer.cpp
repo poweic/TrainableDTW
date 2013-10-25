@@ -82,6 +82,16 @@ int main (int argc, char* argv[]) {
   load("data/train.ali.txt" , model_fn, trainPhoneLabels);
   load("data/dev.ali.txt"   , model_fn, devPhoneLabels);
   load("data/test.ali.txt"  , model_fn, testPhoneLabels);
+
+  map<string, vector<Phone> >::iterator i = trainPhoneLabels.begin();
+  for (; i != trainPhoneLabels.end(); ++i) {
+    printf("%s\t", i->first.c_str());
+    foreach (j, i->second)
+      printf("%lu ", i->second[j].first);
+    printf("\n");
+  }
+
+  return 0;
   
   Answer::iterator itr = ans.begin();
   for (; itr != ans.end(); ++itr) {
@@ -96,19 +106,24 @@ int main (int argc, char* argv[]) {
     loadFeatureArchive(archive_fn, data, offset, N, dim, &docid);
     cutoffWaveFilename(docid);
 
+    mahalanobis_fn fn(dim);
+    fn.setDiag(theta_fn);
+
     foreach (i, docid) {
       if (testPhoneLabels.count(docid[i]) == 0 
 	  && devPhoneLabels.count(docid[i]) == 0
 	  && trainPhoneLabels.count(docid[i]) == 0) {
 
-	printf("document %s not in train, dev, test\n", docid[i].c_str());
+	// printf("document %s not in train, dev, test\n", docid[i].c_str());
 	continue;
       }
 
+      printf("%s\t", docid[i].c_str());
       const vector<Phone>& labels = testPhoneLabels[docid[i]];
       foreach (j, labels)
 	printf("%lu ", labels[j].first);
       printf("\n");
+
     }
     // vector<size_t> pos = getRecalls(docid, itr->second);
 
@@ -116,9 +131,6 @@ int main (int argc, char* argv[]) {
     unsigned int* sub_offset;
 
     // getSubData(&sub_data, &sub_offset, data, offset, pos, N, dim);
-
-    mahalanobis_fn fn(dim);
-    fn.setDiag(theta_fn);
 
     // float* d = computePairwiseDTW(sub_data, sub_offset, sub_N, dim, fn);
     // print(d, sub_N);
