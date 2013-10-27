@@ -98,6 +98,9 @@ dtw-on-answer: $(OBJ) dtw-on-answer.cpp obj/fast_dtw.o
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
+dnn_example: $(OBJ) dnn_example.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+
 #dnn_example: $(OBJ) dnn_example.cu dnn.h $(CU_OBJ)
 
 #thrust_example: $(OBJ) thrust_example.cu obj/device_matrix.o 
