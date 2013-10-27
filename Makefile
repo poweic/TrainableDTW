@@ -89,11 +89,8 @@ train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
-#calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp obj/trainable_dtw.o 
-#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-
-calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cu obj/trainable_dtw.o 
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_OBJ) $(CU_LIB)
+calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
 pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
