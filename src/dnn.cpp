@@ -21,9 +21,11 @@ DNN::DNN(const std::vector<size_t>& dims): _dims(dims) {
   }
 
   randInit();
+
+  _lr = 1e-3;
 }
 
-DNN::DNN(const DNN& source): _dims(source._dims), _weights(source._weights) {
+DNN::DNN(const DNN& source): _dims(source._dims), _weights(source._weights), _lr(source._lr) {
 }
 
 DNN& DNN::operator = (DNN rhs) {
@@ -142,13 +144,15 @@ void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient/
 }
 
 void DNN::updateParameters(std::vector<mat>& gradient) {
-
+  foreach (i, _weights)
+    _weights[i] -= _lr * gradient[i];
 }
 
 void swap(DNN& lhs, DNN& rhs) {
   using WHERE::swap;
   swap(lhs._dims   , rhs._dims   );
   swap(lhs._weights, rhs._weights);
+  swap(lhs._lr	   , rhs._lr	 );
 }
 
 void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs) {

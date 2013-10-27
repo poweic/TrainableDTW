@@ -14,6 +14,7 @@ GRADIENT& calcGradient(Model& model, const vec& x, const vec& y);
 
 void dnn_test();
 void model_test();
+void print(const std::vector<mat>& vm);
 
 int main (int argc, char* argv[]) {
 
@@ -36,23 +37,27 @@ void dnn_test() {
   DNN dnn(dims);
 
 
-  dnn.feedForward(data, &O);
+  for (int itr=0; itr<1000; ++itr) {
+    dnn.feedForward(data, &O);
 
-  printf("rows = %lu, cols = %lu\n", data.getRows(), data.getCols());
-  data.print(2);
+    print(O);
 
-  foreach (i, O) {
-    printf("rows = %lu, cols = %lu\n", O[i].getRows(), O[i].getCols());
-    O[i].print(2);
+    mat error = target - O.back();
+    range (i, error.getRows())
+      range (j, error.getCols())
+	error[i][j] = 0.5 * pow(error[i][j], 2.0);
+
+    dnn.getEmptyGradient(gradient);
+    dnn.backPropagate(error, O, gradient);
+    dnn.updateParameters(gradient);
   }
+}
 
-  mat error = target - O.back();
-  range (i, error.getRows())
-    range (j, error.getCols())
-      error[i][j] = 0.5 * pow(error[i][j], 2.0);
-
-  dnn.getEmptyGradient(gradient);
-  dnn.backPropagate(error, O, gradient);
+void print(const std::vector<mat>& vm) {
+  foreach (i, vm) {
+    printf("rows = %lu, cols = %lu\n", vm[i].getRows(), vm[i].getCols());
+    vm[i].print(3);
+  }
 }
 
 void model_test() {

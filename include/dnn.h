@@ -61,6 +61,7 @@ public:
 private:
   std::vector<size_t> _dims;
   std::vector<mat> _weights;
+  float _lr;
 };
 
 void swap(DNN& lhs, DNN& rhs);
