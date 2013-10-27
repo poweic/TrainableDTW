@@ -1,0 +1,16 @@
+#!/bin/bash
+DATA=$1
+if [ "$1" == "" ]; then
+  echo "Need input data to draw something"
+  exit -1;
+fi
+
+if [ "$2" == "" ]; then
+  PNG_FILENAME=$1.png
+else
+  PNG_FILENAME=$2
+fi
+
+WIDTH=800
+HEIGHT=600
+echo "set terminal png size ${WIDTH},${HEIGHT} enhanced; set output \"${PNG_FILENAME}\"; plot \"${DATA}\" smooth bezier" | gnuplot

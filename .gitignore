@@ -6,3 +6,16 @@ train
 calc-acoustic-similarity
 test
 extract
+dnn_example
+ipc_example
+thrust_example
+tags
+.*
+.log
+log*
+theta*
+calc-acoustic-similarity-fast
+kaldi-to-htk
+pair-wise-dtw
+htk-to-kaldi
+dtw-on-answer

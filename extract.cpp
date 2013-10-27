@@ -5,46 +5,26 @@
 #include <cassert>
 #include <map>
 
-#include <pbar.h>
-#include <utility.h>
-#include <array.h>
+#include <archive_io.h>
 #include <cmdparser.h>
 
-#include <vulcan-hmm.h>
-#include <vulcan-archive.h>
-
-#include <libutility/include/utility.h>
-#include <libfeature/include/feature.h>
-
-#define check_equal(a, b) {cout << "Checking equivalence... " << #a << ((a == b) ? GREEN " == " COLOREND : ORANGE " != " COLOREND) << #b << endl;};
-
 using namespace std;
-using namespace vulcan;
-
-typedef vector<DoubleVector> FeatureSeq;
-typedef std::pair<size_t, size_t> Phone; 
-vector<string> getPhoneMapping(string filename);
-void print(FILE* p, const FeatureSeq& fs);
-int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels);
-size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone> >& phoneLabels, map<size_t, vector<FeatureSeq> >& phoneInstances);
-size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string>& phones);
-
 
 int main(int argc, char* argv[]) {
 
   CmdParser cmdParser(argc, argv);
   cmdParser
     .addGroup("Generic options:")
-    .regOpt("-a", "filename of alignments")
-    .regOpt("-p", "phone table")
-    .regOpt("-m", "model");
+    .add("-a", "filename of alignments")
+    .add("-p", "phone table")
+    .add("-m", "model")
+    .add("--feat-ark", "feature archive where mfcc extracted from")
+    .add("--mfcc-output-folder", "destination folder for saving mfcc files");
 
   cmdParser
-    .addGroup("Other options:")
-    .regOpt("--feat-ark", "feature archive where mfcc extracted from", false);
-
-  cmdParser
-    .addGroup("Examples: ./extract -a data/train.ali.txt -p data/phones.txt -m data/final.mdl --feat-ark=/media/Data1/LectureDSP_script/feat/test.39.ark");
+    .addGroup("Examples: ./extract -a data/train.ali.txt -p data/phones.txt"
+	" -m data/final.mdl --feat-ark=/share/LectureDSP_script/feat/train.39.ark"
+	" --mfcc-output-folder=data/mfcc/");
 
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
@@ -52,7 +32,8 @@ int main(int argc, char* argv[]) {
   string alignmentFile = cmdParser.find("-a");
   string phoneTableFile = cmdParser.find("-p");
   string modelFile = cmdParser.find("-m");
-  string featArk = cmdParser.find("--feat-akr");
+  string featArk = cmdParser.find("--feat-ark");
+  string outputFolder = cmdParser.find("--mfcc-output-folder");
 
   debug(alignmentFile);
   debug(phoneTableFile);
@@ -60,171 +41,29 @@ int main(int argc, char* argv[]) {
 
   vector<string> phones = getPhoneMapping(phoneTableFile);
 
+  printf("Loading alignments and model...\n");
   map<string, vector<Phone> > phoneLabels;
-  int nInstance = load(alignmentFile, modelFile, phoneLabels);
+  size_t nInstance = load(alignmentFile, modelFile, phoneLabels);
+  printf(GREEN"[Done]"COLOREND"\n");
 
   map<size_t, vector<FeatureSeq> > phoneInstances;
 
-  if (featArk.empty())
+  if (featArk.empty()) {
+    printf("No feature archive provided.\n");
     return 0;
+  }
 
-  int n = loadFeatureArchive(featArk, phoneLabels, phoneInstances);
+  printf("Loading feature archive...\n");
+  size_t n = loadFeatureArchive(featArk, phoneLabels, phoneInstances);
   check_equal(n, nInstance);
+  printf(GREEN"[Done]"COLOREND"\n");
 
-  size_t nMfccFiles = saveFeatureAsMFCC(phoneInstances, phones);
+  printf("Saving feature sequences into files...\n");
+  size_t nMfccFiles = saveFeatureAsMFCC(phoneInstances, phones, outputFolder);
   check_equal(nMfccFiles, nInstance);
-
-  cout << "[Done]" << endl;
+  printf(GREEN"[Done]"COLOREND"\n");
 
   return 0;
 }
 
-size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone> >& phoneLabels, map<size_t, vector<FeatureSeq> >& phoneInstances) {
 
-  FILE* fptr = fopen(featArk.c_str(), "r");
-  VulcanUtterance vUtterance;
-  int counter = 0;
-  while (vUtterance.LoadKaldi(fptr)) {
-
-    string docId = vUtterance.fid();
-    if ( phoneLabels.count(docId) == 0 )
-      continue;
-
-    const FeatureSeq& fs = vUtterance._feature;
-    const vector<Phone>& phoneLbl = phoneLabels.find(docId)->second;
-
-    auto offset = fs.begin();
-    for (size_t i=0; i<phoneLbl.size(); ++i) {
-      size_t phoneIdx = phoneLbl[i].first;
-      size_t nFrame = phoneLbl[i].second;
-
-      FeatureSeq fs(nFrame);
-      std::copy(offset, offset + nFrame, fs.begin());
-      offset += nFrame;
-	
-      phoneInstances[phoneIdx].push_back(fs);
-    }
-  }
-
-  size_t nInstance = 0;
-  for (auto i=phoneInstances.cbegin(); i != phoneInstances.cend(); ++i)
-    nInstance += i->second.size();
-  return nInstance;
-}
-
-size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances, const vector<string> &phones) {
-  string dir = "data/phone_instances/";
-  VulcanUtterance tmpInst;
-
-  size_t nInstanceC = 0;
-  for (auto i=phoneInstances.cbegin(); i != phoneInstances.cend(); ++i) {
-
-    string phone = phones[i->first];
-    string folder = "data/mfcc/" + phone;
-    const vector<FeatureSeq>& fSeqs = i->second;
-
-    string ret = exec("mkdir -p " + folder);
-
-    ProgressBar pBar("Saving phone instances for " GREEN + phone + COLOREND "\t...");
-    for (size_t i=0; i<fSeqs.size(); ++i) {
-      pBar.refresh(double (i+1) / fSeqs.size());
-      tmpInst._feature = fSeqs[i];
-      tmpInst.SaveHtk(folder + "/" + int2str(i) + ".mfc", false);
-    }
-    nInstanceC += fSeqs.size();
-  }
-  cout << "nInstanceC = " << nInstanceC << endl;
-
-  int nMfccFiles = str2int(exec("ls data/mfcc/* | wc -l"));
-  return nMfccFiles;
-}
-
-void print(FILE* p, const FeatureSeq& fs) {
-  for (size_t j=0; j<fs.size(); ++j)
-    fs[j].fprintf(p);
-}
-
-vector<string> getPhoneMapping(string filename) {
-
-  vector<string> phones;
-
-  fstream file(filename);
-
-  string line;
-  while( std::getline(file, line) ) {
-    vector<string> sub = split(line, ' ');
-    string p = sub[0];
-    //size_t idx = str2int(sub[1]);
-    phones.push_back(p);
-  }
-
-  return phones;
-}
-
-int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels) {
-  
-  fstream file(alignmentFile.c_str());
-
-  VulcanHmm vHmm;
-  vHmm.LoadKaldiModel(modelFile);
-
-  Array<string> documents;
-  vector<size_t> lengths;
-
-  string phoneAlignment;
-
-  string line;
-  while( std::getline(file, line) ) {
-
-    vector<string> substring = split(line, ' ');
-
-    string docId = substring[0];
-    phoneAlignment += docId + " ";
-
-    size_t prevPhoneId = -1;
-    size_t prevStateId = -1;
-    int nFrame = 0;
-
-    for (size_t j=1; j<substring.size(); ++j) {
-      size_t transID = str2int(substring[j]);
-      size_t phoneId = vHmm.GetPhoneForTransId(transID);
-      size_t stateId = vHmm.GetStateForTransId(transID);
-      size_t c = vHmm.GetClassForTransId(transID);
-
-      // Find a new phone !! Either because different phoneId or a back-transition of state in a HMM
-      if (phoneId != prevPhoneId || (phoneId == prevPhoneId && stateId < prevStateId) ) {
-
-	// TODO Push the previous phone instance into phoneLabels.
-	if (prevPhoneId != -1) 
-	  phoneLabels[docId].push_back(Phone(prevPhoneId, nFrame));
-
-	nFrame = 1;
-      }
-      else {
-	++nFrame;
-      }
-
-      phoneAlignment += int2str(phoneId) + " ";
-
-      prevPhoneId = phoneId;
-      prevStateId = stateId;
-    }
-    phoneAlignment += "\n";
-    
-    const vector<Phone>& p = phoneLabels[docId];
-
-    documents.push_back(substring[0]);
-    lengths.push_back(substring.size() - 1);
-  }
-
-  cout << phoneAlignment << endl;
-
-  //cout << "# of documents = " << documents.size() << endl;
-
-  int nInstance = 0;
-  for (auto i=phoneLabels.cbegin(); i != phoneLabels.cend(); ++i)
-    nInstance += i->second.size();
-  
-  //cout << "# of total phone instances = " << nInstance << endl;
-  return nInstance;
-}

@@ -11,11 +11,14 @@
 #include <cmath>
 #include <csignal>
 #include <sys/stat.h>
+#include <fstream>
 
 #include <color.h>
 using namespace std;
 
 #define foreach(i, arr) for (size_t i=0; i<arr.size(); ++i)
+#define range(i, size) for (size_t i=0; i<size; ++i)
+#define reverse_foreach(i, arr) for (int i=(int)arr.size()-1; i>=0; --i)
 #define FLOAT_MIN (std::numeric_limits<float>::lowest())
 
 #ifdef DEBUG
@@ -24,9 +27,12 @@ using namespace std;
   #define debug(token) {}
 #endif
 
-#define fillwith(arr, val) {std::fill(arr.begin(), arr.end(), val);}
-#define fillzero(arr) fillwith(arr, 0)
+#define mylog(token) {cout << #token " = " << token << endl;}
+
 #define checkNAN(x) assert((x) == (x))
+#define warnNAN(x) { if (x!=x) cout << #x" is NAN" << endl; }
+
+#define __DIVIDER__ "=========================================================="
 
 string int2str(int n);
 int str2int(const string& str);
@@ -34,6 +40,8 @@ float str2float(const string& str);
 double str2double(const string& str);
 string getValueStr(string& str);
 string join(const vector<string>& arr);
+
+std::string exec(std::string cmd);
 
 bool isInt(string str);
 
@@ -45,31 +53,44 @@ inline bool exists (const string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
+// ====================================
+// ===== Vector Utility Functinos =====
+// ====================================
+template <typename T>
+void fillwith(vector<T>& v, T val) {
+  std::fill(v.begin(), v.end(), val);
+}
+
 template <typename T, typename S>
-vector<T> vmax(S a, const vector<T>& v) {
+vector<T> max(S a, const vector<T>& v) {
   vector<T> m(v.size());
   foreach (i, m)
     m[i] = MAX(a, v[i]);
   return m;
 }
 
+template <typename T, typename S>
+vector<T> min(S a, const vector<T>& v) {
+  vector<T> m(v.size());
+  foreach (i, m)
+    m[i] = MIN(a, v[i]);
+  return m;
+}
+
 template <typename T>
-T norm(vector<T> v) {
+T norm(const vector<T>& v) {
   T sum = 0;
-  foreach (i, v) sum += pow(v[i], (T) 2);
+  foreach (i, v)
+    sum += pow(v[i], (T) 2);
   return sqrt(sum);
 }
 
-template <typename T>
-T vecsum(vector<T> v) {
-  T sum = 0;
-  foreach (i, v) sum += v[i];
-  return sum;
-}
+vector<size_t> randperm(size_t N);
 
 template <typename T>
 void normalize(vector<T>& v, int type = 2) {
-  T n = (type == 2) ? norm(v) : vecsum(v);
+  // T n = (type == 2) ? norm(v) : ext::sum(v);
+  T n = norm(v);
   if (n == 0) return;
 
   T normalizer = 1/n;
@@ -78,43 +99,18 @@ void normalize(vector<T>& v, int type = 2) {
 }
 
 template <typename T>
-void print(const vector<T>& v) {
+void print(const vector<T>& v, size_t n_digits = 3) {
+
+  string format = "%." + int2str(n_digits) + "f ";
   printf("[");
   foreach (i, v)
-    printf("%.2f ", v[i]);
+    printf(format.c_str(), v[i]);
   printf("]\n");
 }
 
-template <typename T>
-vector<T> operator / (const vector<T> &v, const T c) {
-  vector<T> v2(v.size());
-  foreach (i, v)
-    v2[i] = v[i] / c;
-  return v2;
-}
-
-template <typename T>
-vector<T> operator * (const vector<T> &v, const T c) {
-  vector<T> v2(v.size());
-  foreach (i, v)
-    v2[i] = v[i] * c;
-  return v2;
-}
-
-template <typename T>
-vector<T> operator + (const vector<T> &v1, const vector<T> &v2) {
-  vector<T> sum(v1.size());
-  std::transform(v1.begin(), v1.end(), v2.begin(), sum.begin(), std::plus<T>());
-  return sum;
-}
-
-template <typename T>
-vector<T> operator - (const vector<T> &v1, const vector<T> &v2) {
-  vector<T> diff(v1.size());
-  std::transform(v1.begin(), v1.end(), v2.begin(), diff.begin(), std::minus<T>());
-  return diff;
-}
-
+// ==============================================
+// ===== Split vectors in vector of vectors =====
+// ==============================================
 template <typename T>
 vector<vector<T> > split(const vector<T>& v, const vector<size_t>& lengths) {
   vector<vector<T> > result;
@@ -143,7 +139,8 @@ template <typename T> int sign(T val) {
   return (T(0) < val) - (val < T(0));
 }
 
-std::string exec(std::string cmd);
+void doPause();
+
 namespace bash {
   vector<string> ls(string path);
 }

@@ -9,59 +9,60 @@
 using namespace DtwUtil;
 
 #include <logarithmetics.h>
+#include <math_ext.h>
 
-#define SOFT_POWER 4
-
-/*inline double softmax(double x, double y, double z, double p = SOFT_POWER) {
-  return pow( (pow(x, p) + pow(y, p) + pow(z, p)) / 3, 1/ p);
-}
-inline double softmin(double x, double y, double z, double p = SOFT_POWER) {
-  // If more than one (>= 1) of the inputs are 0, the output would also be 0 (because 1/inf = 0.)
-  return softmax(x, y, z, -p);
-}*/
+// #define NO_HHTT
+// #define DTW_SLOPE_CONSTRAINT
 
 class SMIN {
 public:
   static double eta;
   inline static double eval(double x, double y, double z);
+  template <class T> static double eval(T* x, size_t n) {
+    double s = eta;
+    LLDouble sum(s * x[0]);
+    for (int i = 1; i < n; ++i)
+      sum = sum + LLDouble(s * x[i]);
+    return sum.getVal() / s;
+  }
 };
 
-//typedef vector<float>& cvec;
-typedef const float* cvec;
+inline double sigmoid(double x);
+inline double d_sigmoid(double x);
 
-class IDistanceGradient {
-  public:
-    virtual double operator() (cvec x, cvec y, size_t k) const = 0;
+class Bhattacharyya {
+public:
+  vector<double> operator() (const float* x, const float* y) const;
+
+  static float fn(const float* a, const float* b, const int size);
+  static void setDiagFromFile(const string& theta_filename);
+  static vector<double>& getDiag();
+  static void setDiag(const vector<double>& diag);
+
+  static void updateNormalizer();
+
+  static double _normalizer;
+private:
+  static vector<double> _diag;
 };
-
-
-class Bhattacharyya : public IDistanceGradient {
-  public:
-    virtual double operator() (cvec x, cvec y, size_t k) const;
-
-    static vector<double>& getDiag();
-    static void setDiag(const vector<double>& d);
-    static float fn(const float* a, const float* b, const int size);
-
-  private:
-    static vector<double> _diag;
-    static const size_t DIM_DEFAULT = 39;
-};
-
-typedef TwoDimArray<float> Table;
 
 namespace DtwUtil {
 
   class CumulativeDtwRunner : public FrameDtwRunner {
     public:
       CumulativeDtwRunner(VectorDistFn norm) : FrameDtwRunner(norm) {}
-      inline double getAlphaBeta(int i, int j) ;
+      void init(vector<float>* snippet_dist,
+                vector<IPair>* snippet_bound,
+                const DtwParm* q_parm,
+                const DtwParm* d_parm);
+      inline double getAlphaBeta(int i, int j);
 
-      void DTW();
+      void DTW(bool scoreOnly = false);
       void calcBeta();
+      void calcAlpha();
 
-      const Table& getAlpha() const { return score_; }
-      const Table& getBeta() const { return beta_; }
+      const TwoDimArray<float>& getAlpha() const { return score_; }
+      const TwoDimArray<float>& getBeta() const { return beta_; }
 
       size_t getFeatureDimension() const {
 	return this->qparm_->Feat().LF();
@@ -78,16 +79,18 @@ namespace DtwUtil {
       const DenseFeature& getD() const { return this->dparm_->Feat(); }
       double getCumulativeScore() const { return _cScore; }
 
-      static unsigned nsnippet_;
+      static size_t getWndSize() { return wndSize_; }
+      static void setWndSize(size_t wndSize) { wndSize_ = wndSize; }
+
       double _cScore;
     protected:
       virtual void CalScoreTable();
     private:
       TwoDimArray<float> beta_;
+
+      static size_t wndSize_;
   };
 
 };
-
-vector<double> calcDeltaTheta(const CumulativeDtwRunner* dtw);
 
 #endif // __CDTW_H

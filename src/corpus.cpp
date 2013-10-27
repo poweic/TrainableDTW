@@ -1,10 +1,11 @@
 #include <corpus.h>
 #include <iostream>
 #include <array.h>
+#include <math_ext.h>
 using namespace std;
 
-const string SubCorpus::MFCC_DIRECTORY = "data/mfcc/";
-const string SubCorpus::LIST_DIRECTORY = "data/train/list/";
+string SubCorpus::FEAT_DIRECTORY = "";
+string SubCorpus::LIST_DIRECTORY = "";
 
 SubCorpus::SubCorpus() {
 }
@@ -20,20 +21,23 @@ vector<ppair> SubCorpus::getSamples(size_t n) {
   samples.reserve(n);
 
   size_t c = 0;
-  foreach (i, _list1) {
-    foreach (j, _list2) {
-      if (c++ < _counter)
-	continue;
 
-      if (c >= _counter + n)
-	break;
+  size_t iStart = _counter / _list2.size();
+  size_t jStart = _counter % _list2.size();
 
-      string f1 = MFCC_DIRECTORY + _phone1 + "/" + _list1[i];
-      string f2 = MFCC_DIRECTORY + _phone2 + "/" + _list2[j];
+  for(size_t i=iStart; i<_list1.size(); ++i) {
+    for(size_t j=jStart; j<_list2.size(); ++j) {
+      if (++c > n) break;
+
+      string f1 = FEAT_DIRECTORY + _phone1 + "/" + _list1[i];
+      string f2 = FEAT_DIRECTORY + _phone2 + "/" + _list2[j];
       samples.push_back(ppair(f1, f2));
     }
+    if (c++ > n) break;
   }
+
   _counter += samples.size();
+
   if (_counter >= _size)
     _counter -= _size;
 
@@ -52,71 +56,102 @@ void SubCorpus::_init() {
     _size = _list1.size() * _list2.size();
 }
 
+void SubCorpus::setListDirectory(string list_directory) {
+  SubCorpus::LIST_DIRECTORY = list_directory;
+}
+void SubCorpus::setFeatureDirectory(string mfcc_directory) {
+  SubCorpus::FEAT_DIRECTORY = mfcc_directory;
+}
+
 
 // ==============================================
-Corpus::Corpus(string filename) {
-    _phones = this->getPhoneList(filename);
+Corpus::Corpus(string filename, string feat_dir, string list_dir) {
 
-    size_t size = 0;
-    // Load all lists for 74 phones
-    foreach (i, _phones) {
-      if (i <= 1) continue;
-      foreach (j, _phones) {
-	if (j <= 1) continue;
-	if (j > i) break;
-	
-	//cout << "i = " << i << ", j = " << j << endl;
-	_sub_corpus.push_back(SubCorpus(i, j, _phones[i], _phones[j]));
-	size += _sub_corpus.back().size();
-      }
+  SubCorpus::setListDirectory(list_dir);
+  SubCorpus::setFeatureDirectory(feat_dir + "/");
+
+  _phones = this->getPhoneList(filename);
+
+  size_t size = 0;
+  // Load all lists for 74 phones
+  foreach (i, _phones) {
+    if (i <= 1 || i >= 38) continue;
+    foreach (j, _phones) {
+      if (j <= 1) continue;
+      if (j > i) break;
+
+      _sub_corpus.push_back(SubCorpus(i, j, _phones[i], _phones[j]));
+      size += _sub_corpus.back().size();
     }
-    _size = size;
+  }
+  _size = size;
+
+  _prior.resize(_sub_corpus.size());
+  foreach (i, _sub_corpus) {
+    _prior[i] = _sub_corpus[i].size();
+    //printf("%lu %lu\n", _sub_corpus[i].size(), _sub_corpus[i].isIntraPhone() ? 1 : 0);
   }
 
-  Array<string> Corpus::getPhoneList(string filename) {
+  ext::normalize(_prior);
+}
 
-    Array<string> list;
+Array<string> Corpus::getPhoneList(string filename) {
 
-    ifstream file(filename);
-    string line;
-    while( std::getline(file, line) ) {
-      vector<string> sub = split(line, ' ');
-      string phone = sub[0];
-      list.push_back(phone);
-    }
-    file.close();
+  Array<string> list;
 
-    return list;
+  ifstream file(filename);
+  string line;
+  while( std::getline(file, line) ) {
+    vector<string> sub = split(line, ' ');
+    string phone = sub[0];
+    list.push_back(phone);
+  }
+  file.close();
+
+  return list;
+}
+
+vector<tsample> Corpus::getSamples(size_t n) {
+  if (n <= 0) return vector<tsample>();
+
+  vector<tsample> samples;
+  samples.reserve(n);
+
+  vector<size_t> sampledClass = ext::sampleDataFrom(_prior, n);
+  sampledClass = ext::hist(sampledClass);
+  assert(ext::sum(sampledClass) == n);
+
+  foreach (i, sampledClass) {
+    int nSamples = sampledClass[i];
+    vector<ppair> subSamples = _sub_corpus[i].getSamples(nSamples);
+    samples.reserve(samples.size() + subSamples.size());
+
+    bool positive = _sub_corpus[i].isIntraPhone();
+    foreach (j, subSamples)
+      samples.push_back(tsample(subSamples[j], positive));
   }
 
-  vector<tsample> Corpus::getSamples(size_t n) {
-    if (n <= 0) return vector<tsample>();
+  /*foreach (i, _sub_corpus) {
+    int nSubSamples = (double) _sub_corpus[i].size() / (double) this->size() * (double) n;
+    vector<ppair> subSamples = _sub_corpus[i].getSamples(nSubSamples);
+    bool positive = _sub_corpus[i].isIntraPhone();
+    foreach (j, subSamples)
+      samples.push_back(tsample(subSamples[j], positive));
+  }*/
 
-    vector<tsample> samples;
-    samples.reserve(n);
+  return samples;
+}
 
-    foreach (i, _sub_corpus) {
-      int nSubSamples = (double) _sub_corpus[i].size() / (double) this->size() * (double) n;
-      vector<ppair> subSamples = _sub_corpus[i].getSamples(nSubSamples);
-      bool positive = _sub_corpus[i].isIntraPhone();
-      foreach (j, subSamples)
-	samples.push_back(tsample(subSamples[j], positive));
-      //samples.insert(samples.end(), subSamples.begin(), subSamples.end());
-    }
+bool Corpus::isBatchSizeApprop(size_t batchSize) {
+  vector<tsample> samples = this->getSamples(batchSize);
 
-    return samples;
+  double RATE = 0.3;
+  if ( (double) samples.size() / (double) batchSize < RATE ) {
+    cerr << "Batch size ( = " << batchSize << " ) too small" << endl
+      << "Only " << samples.size() << " data are sampled from the corpus"
+      << ", leading to extremely bad estimation of distribution." << endl;
+    return false;
   }
 
-  bool Corpus::isBatchSizeApprop(size_t batchSize) {
-    vector<tsample> samples = this->getSamples(batchSize);
-
-    double RATE = 0.3;
-    if ( (double) samples.size() / (double) batchSize < RATE ) {
-      cerr << "Batch size ( = " << batchSize << " ) too small" << endl
-	<< "Only " << samples.size() << " data are sampled from the corpus"
-	<< ", leading to extremely bad estimation of distribution." << endl;
-      return false;
-    }
-
-    return true;
-  }
+  return true;
+}
