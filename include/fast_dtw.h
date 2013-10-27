@@ -104,7 +104,7 @@ float fast_dtw(
 
 float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta);
 
-float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& fn);
+void pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& fn);
 
 void free2D(float** p, size_t m);
 float** malloc2D(size_t m, size_t n);

@@ -5,7 +5,7 @@
 // ===== Dynamic Time Warping in CPU =====
 // =======================================
 
-float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
+void pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
   range (x, rows)
     range (y, cols)
       pdist[x * cols + y] = d(f1 + x * dim, f2 + y * dim, dim);

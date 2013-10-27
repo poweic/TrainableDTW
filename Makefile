@@ -3,14 +3,12 @@ UGOC_ROOT=/home/boton/Dropbox/DSP/ugoc/
 RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 
 CC=gcc
-CXX=g++-4.6
+CXX=g++-4.6 -Werror
 CFLAGS=
 NVCC=nvcc -arch=sm_21 -w
 
 INCLUDE= -I include/ \
 	 -I /usr/local/boton/include/ \
-	 -I $(VULCAN_ROOT)/am \
-	 -I $(VULCAN_ROOT)/feature \
 	 -I $(VULCAN_ROOT) \
 	 -I $(UGOC_ROOT) \
 	 -I $(UGOC_ROOT)/libsegtree/include \
@@ -19,11 +17,9 @@ INCLUDE= -I include/ \
 	 -I $(UGOC_ROOT)/libutility/include \
 	 -I /share/Local/ \
  	 -I /usr/local/cuda/samples/common/inc/ \
-	 -I /usr/local/cuda/include
-
-#-I $(RTK_UTIL_ROOT)/include
-#-I $(UGOC_ROOT)/libfeature/include \
-#-I $(UGOC_ROOT)/libutility/include \
+	 -I /usr/local/cuda/include \
+	 -isystem $(VULCAN_ROOT)/am \
+	 -isystem $(VULCAN_ROOT)/feature
 
 CPPFLAGS= -std=c++0x -Wall -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
