@@ -81,6 +81,8 @@ void DNN::randInit() {
 // ===== Feed Forward =====
 // ========================
 void DNN::feedForward(const vec& x, std::vector<vec>* hidden_output) {
+  assert(hidden_output != NULL);
+
   std::vector<vec>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
@@ -97,12 +99,11 @@ void DNN::feedForward(const vec& x, std::vector<vec>* hidden_output) {
 }
 
 void DNN::feedForward(const mat& x, std::vector<mat>* hidden_output) {
+  assert(hidden_output != NULL);
+
   std::vector<mat>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
-  // TODO add an overloaded function "add_bias" for
-  // both vector and matrix, and this two feedForward
-  // function can then be merged.
   O[0] = add_bias(x);
 
   for (size_t i=1; i<O.size() - 1; ++i)
