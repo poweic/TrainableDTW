@@ -75,27 +75,6 @@ vector<T> operator * (const vector<T>& row_vector, const Matrix2D<T>& A) {
 #undef WHERE
 
 template <typename T>
-void remove_bias(Matrix2D<T>& A) {
-  Matrix2D<T> B(A.getRows(), A.getCols() - 1);
-  range (i, B.getRows())
-    range (j, B.getCols())
-      B[i][j] = A[i][j];
-
-  A = B;
-}
-
-template <typename T>
-Matrix2D<T> add_bias(const Matrix2D<T>& A) {
-  Matrix2D<T> B(A.getRows(), A.getCols() + 1);
-  range (i, B.getRows()) {
-    range (j, B.getCols())
-      B[i][j] = A[i][j];
-    B[i][B.getCols()] = 1;
-  }
-  return B;
-}
-
-template <typename T>
 Matrix2D<T> operator & (const Matrix2D<T>& A, const Matrix2D<T>& B) {
   assert(A.getRows() == B.getRows() && A.getCols() == B.getCols());
 

@@ -18,7 +18,7 @@ void print(const std::vector<mat>& vm);
 
 int main (int argc, char* argv[]) {
 
-  // model_test();
+  model_test();
   dnn_test();
 
   return 0;
@@ -34,10 +34,12 @@ void dnn_test() {
   vector<mat> O(4);
   std::vector<mat> gradient;
 
+  vector<float> coeff = ext::randn<float>(data.getRows());
+
   DNN dnn(dims);
 
 
-  for (int itr=0; itr<1000; ++itr) {
+  for (int itr=0; itr<16; ++itr) {
     dnn.feedForward(data, &O);
 
     print(O);
@@ -48,8 +50,8 @@ void dnn_test() {
 	error[i][j] = 0.5 * pow(error[i][j], 2.0);
 
     dnn.getEmptyGradient(gradient);
-    dnn.backPropagate(error, O, gradient);
-    dnn.updateParameters(gradient);
+    dnn.backPropagate(error, O, gradient, coeff);
+    dnn.updateParameters(gradient, 1e-4);
   }
 }
 
