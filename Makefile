@@ -1,9 +1,9 @@
-VULCAN_ROOT=/media/Data1/Vulcan.v.0.12
+VULCAN_ROOT=/share/Vulcan.v.0.12
 UGOC_ROOT=/home/boton/Dropbox/DSP/ugoc/
 RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 
 CC=gcc
-CXX=g++
+CXX=g++-4.6
 CFLAGS=
 NVCC=nvcc -arch=sm_21 -w
 
@@ -92,7 +92,9 @@ calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
 pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
+#	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 dtw-on-answer: $(OBJ) dtw-on-answer.cpp obj/fast_dtw.o
 	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
