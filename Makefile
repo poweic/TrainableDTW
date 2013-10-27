@@ -52,6 +52,7 @@ LIBRARY= -lpbar \
 	 $(VULCAN_ROOT)/common/vulcan-common.a\
 	 -lgsl\
 	 -lcblas\
+	 -latlas\
 	 -ldtw\
 	 -lfeature\
 	 -lsegtree\
@@ -93,7 +94,8 @@ pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
 #	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 dtw-on-answer: $(OBJ) dtw-on-answer.cpp obj/fast_dtw.o
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
