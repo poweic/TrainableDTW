@@ -21,11 +21,9 @@ DNN::DNN(const std::vector<size_t>& dims): _dims(dims) {
   }
 
   randInit();
-
-  _lr = 1e-3;
 }
 
-DNN::DNN(const DNN& source): _dims(source._dims), _weights(source._weights), _lr(source._lr) {
+DNN::DNN(const DNN& source): _dims(source._dims), _weights(source._weights) {
 }
 
 DNN& DNN::operator = (DNN rhs) {
@@ -88,10 +86,7 @@ void DNN::feedForward(const vec& x, std::vector<vec>* hidden_output) {
   std::vector<vec>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
-  // Init with one extra element, which is bias
-  O[0].resize(x.size() + 1);
-  WHERE::copy(x.begin(), x.end(), O[0].begin());
-  O[0][x.size()] = 1;
+  O[0] = add_bias(x);
 
   for (size_t i=1; i<O.size() - 1; ++i)
     O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
@@ -127,15 +122,15 @@ void DNN::backPropagate(vec& p, std::vector<vec>& O, std::vector<mat>& gradient)
     p = dsigma(O[i]) & (_weights[i] * p); // & stands for .* in MATLAB
 
     // Remove bias
-    p.pop_back();
+    remove_bias(p);
   }
 }
 
-void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient/*, const vec& coeff*/) {
+void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient, const vec& coeff) {
   assert(gradient.size() == _weights.size());
 
   reverse_foreach (i, _weights) {
-    gradient[i] = ~O[i] * p; //(p & coeff);
+    gradient[i] = ~O[i] * (p & coeff);
     p = dsigma(O[i]) & (p * ~_weights[i]);
 
     // Remove bias
@@ -143,16 +138,15 @@ void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient/
   }
 }
 
-void DNN::updateParameters(std::vector<mat>& gradient) {
+void DNN::updateParameters(std::vector<mat>& gradient, float learning_rate) {
   foreach (i, _weights)
-    _weights[i] -= _lr * gradient[i];
+    _weights[i] -= learning_rate * gradient[i];
 }
 
 void swap(DNN& lhs, DNN& rhs) {
   using WHERE::swap;
   swap(lhs._dims   , rhs._dims   );
   swap(lhs._weights, rhs._weights);
-  swap(lhs._lr	   , rhs._lr	 );
 }
 
 void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs) {
