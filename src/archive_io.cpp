@@ -35,14 +35,17 @@ size_t loadFeatureArchive(const string& featArk, const map<string, vector<Phone>
   return nInstance;
 }
 
-void loadFeatureArchive(string filename, float* &data, unsigned int* &offset, int& N, int& dim) {
+void loadFeatureArchive(string filename, float* &data, unsigned int* &offset, int& N, int& dim, vector<string>* docid) {
 
   vector<FeatureSeq> featureSeqs;
 
   FILE* fptr = fopen(filename.c_str(), "r");
   vulcan::VulcanUtterance vUtterance;
-  while (vUtterance.LoadKaldi(fptr))
+  while (vUtterance.LoadKaldi(fptr)) {
     featureSeqs.push_back(vUtterance._feature);
+    if (docid != NULL)
+      docid->push_back(vUtterance.fid());
+  }
   fclose(fptr);
 
   N = featureSeqs.size();

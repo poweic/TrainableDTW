@@ -64,7 +64,7 @@ int main (int argc, char* argv[]) {
   if (gpuEnabled)
     scores = computePairwiseDTW_in_gpu(data, offset, N, dim);
   else
-    scores = computePairwiseDTW(data, offset, N, dim, *dist);
+    scores = computePairwiseDTW(data, offset, N, dim, *dist, eta);
 
   setDiagToZero(scores, N);
 
@@ -190,7 +190,7 @@ void selfTest() {
   string archive_fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
 
   int N, dim; float* data; unsigned int* offset;
-  loadFeatureArchive(archive_fn, data, offset, N, dim); 
+  // loadFeatureArchive(archive_fn, data, offset, N, dim); 
   mylog(N);
 
   perf::Timer timer;
@@ -210,7 +210,7 @@ void selfTest() {
 
   timer.reset();
   timer.start();
-  float* scores = computePairwiseDTW(data, offset, N, dim, eu);
+  float* scores = computePairwiseDTW(data, offset, N, dim, eu, -4);
   timer.stop();
   printf("Elasped time: %.2f secs\n", timer.getTime());
 
