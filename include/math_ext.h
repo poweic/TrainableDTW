@@ -278,6 +278,7 @@ namespace ext {
   Matrix2D<T> b_sigmoid(const Matrix2D<T>& x) {
     Matrix2D<T> s(x.getRows(), x.getCols() + 1);
 
+
     for (size_t i=0; i<x.getRows(); ++i) {
       std::transform(x[i], x[i] + x.getCols(), s[i], func::sigmoid<T>());
       s[i][x.getCols()] = 1.0;

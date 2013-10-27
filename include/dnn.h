@@ -42,7 +42,9 @@ public:
   void feedForward(const mat& x, std::vector<mat>* hidden_output);
 
   void backPropagate(vec& p, std::vector<vec>& hidden_output, std::vector<mat>& gradient);
-  void backPropagate(mat& p, std::vector<mat>& hidden_output, std::vector<mat>& gradient, const vec& coeff);
+  void backPropagate(mat& p, std::vector<mat>& hidden_output, std::vector<mat>& gradient/*, const vec& coeff*/);
+
+  void updateParameters(std::vector<mat>& gradient);
 
   size_t getNLayer() const;
   size_t getDepth() const;
@@ -59,6 +61,7 @@ public:
 private:
   std::vector<size_t> _dims;
   std::vector<mat> _weights;
+  float _lr;
 };
 
 void swap(DNN& lhs, DNN& rhs);
