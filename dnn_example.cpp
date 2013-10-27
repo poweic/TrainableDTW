@@ -4,7 +4,7 @@
 #include <array.h>
 #include <perf.h>
 
-#include <dnn.h>
+#include <model.h>
 
 using namespace std;
 
@@ -26,7 +26,7 @@ int main (int argc, char* argv[]) {
   vec dsigma_x = dsigma(x); ::print(x, 6);   ::print(dsigma_x, 6);
 
   int M = 74;
-  int WIDTH = 512;
+  int WIDTH = 32;
   vector<size_t> d1(5), d2(5);
   d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = WIDTH; d1[4] = M;
   d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = WIDTH; d2[4] = 1;
