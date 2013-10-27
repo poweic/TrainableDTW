@@ -129,16 +129,20 @@ void DNN::backPropagate(vec& p, std::vector<vec>& O, std::vector<mat>& gradient)
   }
 }
 
-void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient, const vec& coeff) {
+void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient/*, const vec& coeff*/) {
   assert(gradient.size() == _weights.size());
 
   reverse_foreach (i, _weights) {
-    gradient[i] = O[i] * (p & coeff);
-    p = dsigma(O[i]) & (_weights[i] * p);
+    gradient[i] = ~O[i] * p; //(p & coeff);
+    p = dsigma(O[i]) & (p * ~_weights[i]);
 
     // Remove bias
     remove_bias(p);
   }
+}
+
+void DNN::updateParameters(std::vector<mat>& gradient) {
+
 }
 
 void swap(DNN& lhs, DNN& rhs) {

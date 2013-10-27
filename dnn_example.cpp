@@ -8,32 +8,51 @@
 
 using namespace std;
 
-// typedef device_matrix<float> mat;
-// typedef thrust::device_vector<float> vec;
-
 GRADIENT& operator += (GRADIENT& g1, GRADIENT& g2);
 void print(GRADIENT& g);
 GRADIENT& calcGradient(Model& model, const vec& x, const vec& y);
 
+void dnn_test();
+void model_test();
+
 int main (int argc, char* argv[]) {
-  mat x("data/test.mx");
+
+  // model_test();
+  dnn_test();
+
+  return 0;
+}
+
+void dnn_test() {
+
+  mat data("data/test.mx");
+  mat target("data/test.mt");
 
   vector<size_t> dims(4);
   dims[0] = 15; dims[1] = 20; dims[2] = 30; dims[3] = 40;
   vector<mat> O(4);
+  std::vector<mat> gradient;
 
   DNN dnn(dims);
-  dnn.feedForward(x, &O);
 
-  printf("rows = %lu, cols = %lu\n", x.getRows(), x.getCols());
-  x.print(2);
+
+  dnn.feedForward(data, &O);
+
+  printf("rows = %lu, cols = %lu\n", data.getRows(), data.getCols());
+  data.print(2);
 
   foreach (i, O) {
     printf("rows = %lu, cols = %lu\n", O[i].getRows(), O[i].getCols());
     O[i].print(2);
   }
 
-  return 0;
+  mat error = target - O.back();
+  range (i, error.getRows())
+    range (j, error.getCols())
+      error[i][j] = 0.5 * pow(error[i][j], 2.0);
+
+  dnn.getEmptyGradient(gradient);
+  dnn.backPropagate(error, O, gradient);
 }
 
 void model_test() {
@@ -48,8 +67,8 @@ void model_test() {
   int M = 74;
   int WIDTH = 32;
   vector<size_t> d1(5), d2(5);
-  d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH; d1[3] = WIDTH; d1[4] = M;
-  d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH; d2[3] = WIDTH; d2[4] = 1;
+  d1[0] = 39; d1[1] = WIDTH; d1[2] = WIDTH + 1; d1[3] = WIDTH + 2; d1[4] = M;
+  d2[0] =  M; d2[1] = WIDTH; d2[2] = WIDTH + 1; d2[3] = WIDTH + 2; d2[4] = 1;
 
   Model model(d1, d2);
 
