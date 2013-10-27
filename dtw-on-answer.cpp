@@ -19,37 +19,15 @@ void setDiagToOne(float* m, int N);
 void setDiagToZero(float* m, int N);*/
 void print(float* m, int N);
 vector<size_t> getRecalls(const vector<string>& retrieved, const vector<string>& answers);
+vector<string> getRecalledDocId(const vector<string>& retrieved, const vector<string>& answers);
 void getSubData(float** sub_data, unsigned int** sub_offset, const float* data, const unsigned int* offset, const vector<size_t>& positions, int N, int dim);
-
 void getSubData(float** sub_data, float** sub_offset, const float* data, const unsigned int* offset, int N, int dim);
-
+float computeDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta, int i, int j);
+void printSimilarity(Matrix2D<float> m, const vector<string>& docid);
 typedef map<string, vector<string> > Answer;
-Answer loadAnswer(string filename) {
-
-  FILE* fid = fopen(filename.c_str(), "r");
-  size_t qid, dummy;
-  char qstring[32], docid[32];
-  Answer ans;
-
-  while (fscanf(fid, "%lu %s %s %lu", &qid, qstring, docid, &dummy) != -1)
-    ans[qstring].push_back(docid);
-
-  return ans;
-}
-
-void cutoffWaveFilename(vector<string> &docid) {
-  foreach (i, docid) {
-    size_t begin = docid[i].find_last_of('/');
-    size_t end = docid[i].find_last_of('_');
-    docid[i] = docid[i].substr(begin + 1, end - begin - 1);
-  }
-}
-
-size_t find(const vector<string>& arr, const string s) {
-  foreach (i, arr)
-    if (arr[i] == s) return i;
-  return -1;
-}
+Answer loadAnswer(string filename);
+void cutoffWaveFilename(vector<string> &docid);
+size_t find(const vector<string>& arr, const string s);
 
 int main (int argc, char* argv[]) {
 
@@ -68,7 +46,7 @@ int main (int argc, char* argv[]) {
     cmdParser.showUsageAndExit();
 
   string theta_fn = cmdParser.find("--theta");
-
+  float eta = str2float(cmdParser.find("--eta"));
 
   Array<string> queries("data/108.query");
   Answer ans = loadAnswer("data/108.ans");
@@ -77,73 +55,162 @@ int main (int argc, char* argv[]) {
   // string model_fn = "data/final.mdl";
   // load("data/test.ali.txt"  , model_fn, phoneLabels);
   
-  map<string, vector<Phone> > trainPhoneLabels, devPhoneLabels, testPhoneLabels;
+  map<string, vector<Phone> > trainPhoneLabels, devPhoneLabels, testPhoneLabels, otherPhoneLabels;
   string model_fn = "data/final.mdl";
-  load("data/train.ali.txt" , model_fn, trainPhoneLabels);
-  load("data/dev.ali.txt"   , model_fn, devPhoneLabels);
+  // load("data/train.ali.txt" , model_fn, trainPhoneLabels);
+  // load("data/dev.ali.txt"   , model_fn, devPhoneLabels);
+  load("data/other.ali.txt" , model_fn, otherPhoneLabels);
   load("data/test.ali.txt"  , model_fn, testPhoneLabels);
 
-  map<string, vector<Phone> >::iterator i = trainPhoneLabels.begin();
-  for (; i != trainPhoneLabels.end(); ++i) {
-    printf("%s\t", i->first.c_str());
-    foreach (j, i->second)
-      printf("%lu ", i->second[j].first);
+  // string query = "COMPACT";
+  string query = "ITERATION";
+  string archive_fn = "/share/hypothesis/OOV_g2p.kaldi/posterior/" + query + ".76.ark";
+  float* data;
+  unsigned int* offset;
+  int N, dim;
+  vector<string> docid;
+
+  loadFeatureArchive(archive_fn, data, offset, N, dim, &docid);
+  cutoffWaveFilename(docid);
+
+  /*foreach (i, docid) {
+    if (testPhoneLabels.count(docid[i]) == 0)
+      continue;
+
+    printf("%s\t", docid[i].c_str());
+    const vector<Phone>& labels = testPhoneLabels[docid[i]];
+    foreach (j, labels)
+      printf("%lu ", labels[j].second);
+    printf("\n");
+  }*/
+
+  vector<size_t> recall = getRecalls(docid, ans[query]);
+
+  vector<size_t> pos;
+  foreach (i, recall) {
+    string did = docid[recall[i]];
+    if (testPhoneLabels.count(did) != 0 || otherPhoneLabels.count(did) != 0)
+      pos.push_back(recall[i]);
+    else
+      cout << "NOT IN TEST-SET" << endl;
+  }
+
+  size_t M = pos.size();
+
+  string root  = "/share/preparsed_files/",
+	 set1  = "OOV_g2p_det_add_log_scale",
+	 set2  = "OOV_g2p_all_two_no_normalize_-2",
+	 s1_fn = root + set1 + "/mul-sim/" + query + ".mul-sim",
+	 s2_fn = root + set2 + "/mul-sim/" + query + ".mul-sim";
+
+  Matrix2D<float> s1(s1_fn);
+  Matrix2D<float> s2(s2_fn);
+
+  Matrix2D<float> a1(M, M);
+  Matrix2D<float> a2(M, M);
+
+  range (i, M) {
+    range (j, M) {
+      a1[i][j] = s1[pos[i]][pos[j]];
+      a2[i][j] = s2[pos[i]][pos[j]];
+    }
+  }
+
+  vector<string> relDocIds = getRecalledDocId(docid, ans[query]);
+
+  /*cout << s1_fn << endl << endl;
+  printSimilarity(a1, relDocIds);
+  cout << endl;
+
+  cout << s2_fn << endl << endl;
+  printSimilarity(a2, relDocIds);
+  cout << endl;*/
+
+  if (pos.size() == 0)
+    exit(-1);
+
+  string ustr = docid[pos[0]];
+  size_t uindex = find(docid, ustr);
+
+  mylog(ustr);
+  mylog(uindex);
+
+  mahalanobis_fn fn(dim);
+
+  computeDTW(data, offset, N, dim, fn, eta, pos[0], pos[1]);
+  /*range (i, M) {
+    printf("%s vs. %s \n", ustr.c_str(), relDocIds[i].c_str());
+    computeDTW(data, offset, N, dim, fn, eta, uindex, pos[i]);
+  }
+  printf("\n");*/
+
+  /*fn.setDiag(theta_fn);
+  range (i, M) {
+    float s = computeDTW(data, offset, N, dim, fn, -4, uindex, pos[i]);
+    printf("%.5f ", s);
+  }
+  printf("\n");*/
+
+  delete [] data;
+  delete [] offset;
+
+  return 0;
+}
+
+float computeDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta, int i, int j) {
+
+  size_t rows = (offset[i + 1] - offset[i]) / dim;
+  size_t cols = (offset[j + 1] - offset[j]) / dim;
+
+  float* alpha = new float[rows * cols];
+  float* beta  = new float[rows * cols];
+  float* pdist = new float[rows * cols];
+
+  const float *f1 = data + offset[i];
+  const float *f2 = data + offset[j];
+
+  pair_distance(f1, f2, rows, cols, dim, eta, pdist, fn);
+  float s = fast_dtw(pdist, rows, cols, dim, eta, alpha, beta);
+
+  printf("rows = %lu, cols = %lu\n", rows, cols);
+  range (i, rows) {
+    range (j, cols)
+      printf("%2.0f ", alpha[i * cols + j] + beta[i * cols + j] - s);
     printf("\n");
   }
+  printf("\n");
 
-  return 0;
-  
-  Answer::iterator itr = ans.begin();
-  for (; itr != ans.end(); ++itr) {
-    string qstring = itr->first;
+  delete [] alpha;
+  delete [] beta;
+  delete [] pdist;
 
-    string archive_fn = "/share/hypothesis/OOV_g2p.kaldi/posterior/" + qstring + ".76.ark";
-    float* data;
-    unsigned int* offset;
-    int N, dim;
-    vector<string> docid;
+  return s;
+}
 
-    loadFeatureArchive(archive_fn, data, offset, N, dim, &docid);
-    cutoffWaveFilename(docid);
+void printSimilarity(Matrix2D<float> m, const vector<string>& docids) {
+  int M = m.getRows();
 
-    mahalanobis_fn fn(dim);
-    fn.setDiag(theta_fn);
-
-    foreach (i, docid) {
-      if (testPhoneLabels.count(docid[i]) == 0 
-	  && devPhoneLabels.count(docid[i]) == 0
-	  && trainPhoneLabels.count(docid[i]) == 0) {
-
-	// printf("document %s not in train, dev, test\n", docid[i].c_str());
-	continue;
-      }
-
-      printf("%s\t", docid[i].c_str());
-      const vector<Phone>& labels = testPhoneLabels[docid[i]];
-      foreach (j, labels)
-	printf("%lu ", labels[j].first);
-      printf("\n");
-
+  range (i, M) {
+    printf(BLUE"%s\t"COLOREND, docids[i].c_str());
+    range (j, M) {
+      if (j < i)
+	printf("%.5f ", m[i][j]);
+      else
+	printf("        ");
     }
-    // vector<size_t> pos = getRecalls(docid, itr->second);
-
-    float* sub_data;
-    unsigned int* sub_offset;
-
-    // getSubData(&sub_data, &sub_offset, data, offset, pos, N, dim);
-
-    // float* d = computePairwiseDTW(sub_data, sub_offset, sub_N, dim, fn);
-    // print(d, sub_N);
-    // delete [] d;
-
-    // delete [] sub_data;
-    // delete [] sub_offset;
-
-    delete [] data;
-    delete [] offset;
+    printf("\n");
   }
+}
 
-  return 0;
+vector<string> getRecalledDocId(const vector<string>& retrieved, const vector<string>& answers) {
+  vector<string> docids;
+
+  vector<size_t> pos = getRecalls(retrieved, answers);
+
+  foreach (i, pos)
+    docids.push_back(retrieved[pos[i]]);
+
+  return docids;
 }
 
 vector<size_t> getRecalls(const vector<string>& retrieved, const vector<string>& answers) {
@@ -154,6 +221,34 @@ vector<size_t> getRecalls(const vector<string>& retrieved, const vector<string>&
       positions.push_back(pos);
   }
   return positions;
+}
+
+void cutoffWaveFilename(vector<string> &docid) {
+  foreach (i, docid) {
+    size_t begin = docid[i].find_last_of('/');
+    size_t end = docid[i].find_last_of('_');
+    docid[i] = docid[i].substr(begin + 1, end - begin - 1);
+  }
+}
+
+size_t find(const vector<string>& arr, const string s) {
+  foreach (i, arr)
+    if (arr[i] == s) return i;
+  return -1;
+}
+
+
+Answer loadAnswer(string filename) {
+
+  FILE* fid = fopen(filename.c_str(), "r");
+  size_t qid, dummy;
+  char qstring[32], docid[32];
+  Answer ans;
+
+  while (fscanf(fid, "%lu %s %s %lu", &qid, qstring, docid, &dummy) != -1)
+    ans[qstring].push_back(docid);
+
+  return ans;
 }
 
 void getSubData(float** sub_data, unsigned int** sub_offset, const float* data, const unsigned int* offset, const vector<size_t>& positions, int N, int dim) {
