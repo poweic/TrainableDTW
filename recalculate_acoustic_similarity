@@ -19,6 +19,10 @@ function recalcAcousticSimilarity() {
   printf "\33[33m[Info]\33[0m # of query: ${#QUERIES[@]}\n"
   bin=./pair-wise-dtw
 
+  theta=`echo "${opts[@]}" | cut -f 1 -d " " | sed "s/.*=//g"`
+  cp $theta "${MULSIM_DIR}/../"
+  
+
   #if [ "${feature_dim}" == "39" ]; then dist_type="--type=ma" else dist_type="--type=lip" fi
   #for q in ${QUERIES[@]}; do
   #  echo $q
@@ -42,8 +46,8 @@ function recalcAS() {
 
   #old_bin=./calc-acoustic-similarity
   #echo ${old_bin} -d $dir -o $mat $dtw_options --list=$list ${opts[@]}
-  ${bin} --ark=$feature -o $mat ${opts[@]} --type=ma --scale=log
-  
+  ${bin} --ark=$feature -o $mat ${opts[@]} --scale=log
+
   shopt -u extglob
 }
 recalcAcousticSimilarity
