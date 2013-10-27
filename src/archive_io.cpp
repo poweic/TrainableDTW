@@ -111,7 +111,7 @@ size_t saveFeatureAsMFCC(const map<size_t, vector<FeatureSeq> >& phoneInstances,
 // *********************************
 // ***** Load Phone Alignments *****
 // *********************************
-int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels, bool dump) {
+size_t load(string alignmentFile, string modelFile, map<string, vector<Phone> >& phoneLabels, bool dump) {
   
   fstream file(alignmentFile.c_str());
 
@@ -170,7 +170,7 @@ int load(string alignmentFile, string modelFile, map<string, vector<Phone> >& ph
   if (dump)
     cout << phoneAlignment << endl;
 
-  int nInstance = 0;
+  size_t nInstance = 0;
   for (auto i=phoneLabels.cbegin(); i != phoneLabels.cend(); ++i)
     nInstance += i->second.size();
   

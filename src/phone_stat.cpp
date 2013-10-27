@@ -1,5 +1,4 @@
 #include <phone_stat.h>
-extern string scoreDir;
 
 void deduceCompetitivePhones(const Array<string>& phones, const Matrix2D<double>& scores) {
   for (size_t i=0; i<scores.getRows(); ++i) {
@@ -169,7 +168,10 @@ double average(const Matrix2D<double>& m, double MIN) {
   return total / counter;
 }
 
-void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile) {
+void evaluate(bool reevaluate, const Array<string>& phones, string MFCC_DIR, size_t N, string matFile, string scoreDir) {
+
+  scoreDir += "/";
+  exec("mkdir -p " + scoreDir);
 
   if (reevaluate)
     computeBetweenPhoneDistance(phones, MFCC_DIR, N, scoreDir);

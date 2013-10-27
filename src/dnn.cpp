@@ -11,7 +11,7 @@ vec loadvector(string filename) {
 
 DNN::DNN() {}
 
-DNN::DNN(const STL_VECTOR<size_t>& dims): _dims(dims) {
+DNN::DNN(const std::vector<size_t>& dims): _dims(dims) {
   _weights.resize(_dims.size() - 1);
 
   foreach (i, _weights) {
@@ -58,7 +58,7 @@ void DNN::print() const {
     _weights[i].print(5);
 }
 
-void DNN::getEmptyGradient(STL_VECTOR<mat>& g) const {
+void DNN::getEmptyGradient(std::vector<mat>& g) const {
   g.resize(_weights.size());
   foreach (i, _weights) {
     int m = _weights[i].getRows();
@@ -67,10 +67,10 @@ void DNN::getEmptyGradient(STL_VECTOR<mat>& g) const {
   }
 }
 
-STL_VECTOR<mat>& DNN::getWeights() { return _weights; }
-const STL_VECTOR<mat>& DNN::getWeights() const { return _weights; }
-STL_VECTOR<size_t>& DNN::getDims() { return _dims; }
-const STL_VECTOR<size_t>& DNN::getDims() const { return _dims; }
+std::vector<mat>& DNN::getWeights() { return _weights; }
+const std::vector<mat>& DNN::getWeights() const { return _weights; }
+std::vector<size_t>& DNN::getDims() { return _dims; }
+const std::vector<size_t>& DNN::getDims() const { return _dims; }
 
 void DNN::randInit() {
   foreach (i, _weights)
@@ -80,8 +80,8 @@ void DNN::randInit() {
 // ========================
 // ===== Feed Forward =====
 // ========================
-void DNN::feedForward(const vec& x, STL_VECTOR<vec>* hidden_output) {
-  STL_VECTOR<vec>& O = *hidden_output;
+void DNN::feedForward(const vec& x, std::vector<vec>* hidden_output) {
+  std::vector<vec>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
   // Init with one extra element, which is bias
@@ -96,8 +96,8 @@ void DNN::feedForward(const vec& x, STL_VECTOR<vec>* hidden_output) {
   O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
 }
 
-void DNN::feedForward(const mat& x, STL_VECTOR<mat>* hidden_output) {
-  STL_VECTOR<mat>& O = *hidden_output;
+void DNN::feedForward(const mat& x, std::vector<mat>* hidden_output) {
+  std::vector<mat>& O = *hidden_output;
   assert(O.size() == _dims.size());
 
   // TODO add an overloaded function "add_bias" for
@@ -115,7 +115,7 @@ void DNN::feedForward(const mat& x, STL_VECTOR<mat>* hidden_output) {
 // ============================
 // ===== Back Propagation =====
 // ============================
-void DNN::backPropagate(vec& p, STL_VECTOR<vec>& O, STL_VECTOR<mat>& gradient) {
+void DNN::backPropagate(vec& p, std::vector<vec>& O, std::vector<mat>& gradient) {
 
   assert(gradient.size() == _weights.size());
 
@@ -128,7 +128,7 @@ void DNN::backPropagate(vec& p, STL_VECTOR<vec>& O, STL_VECTOR<mat>& gradient) {
   }
 }
 
-void DNN::backPropagate(mat& p, STL_VECTOR<mat>& O, STL_VECTOR<mat>& gradient, const vec& coeff) {
+void DNN::backPropagate(mat& p, std::vector<mat>& O, std::vector<mat>& gradient, const vec& coeff) {
   assert(gradient.size() == _weights.size());
 
   reverse_foreach (i, _weights) {
@@ -166,12 +166,12 @@ void swap(GRADIENT& lhs, GRADIENT& rhs) {
 // ===============================
 Model::Model() {}
 
-Model::Model(const STL_VECTOR<size_t>& pp_dim, const STL_VECTOR<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
+Model::Model(const std::vector<size_t>& pp_dim, const std::vector<size_t>& dtw_dim): _lr(-0.0001), _pp(pp_dim), _dtw(dtw_dim) {
   _w = ext::randn<float>(_dtw.getDims()[0]);
   this->initHiddenOutputAndGradient();
 }
 
-Model::Model(const Model& source): gradient(source.gradient), hidden_output(source.hidden_output), _lr(source._lr), _pp(source._pp), _w(source._w), _dtw(source._dtw) {}
+Model::Model(const Model& source): hidden_output(source.hidden_output), gradient(source.gradient), _lr(source._lr), _w(source._w), _pp(source._pp), _dtw(source._dtw) {}
 
 Model& Model::operator = (Model rhs) {
   swap(*this, rhs);
@@ -252,13 +252,13 @@ void Model::calcGradient(const vec& x, const vec& y) {
 void Model::updateParameters(GRADIENT& g) {
   GRADIENT_REF(g, ppg1, ppg2, mg, dtwg);
 
-  STL_VECTOR<mat>& ppw = _pp.getWeights();
+  std::vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
     ppw[i] -= _lr * (ppg1[i] + ppg2[i]);
 
   this->_w -= _lr * mg * 1e7;
 
-  STL_VECTOR<mat>& dtww = _dtw.getWeights();
+  std::vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i] -= _lr * dtwg[i];
 }
@@ -302,13 +302,13 @@ void Model::save(string folder) const {
 
   folder += "/";
   
-  const STL_VECTOR<mat>& ppw = _pp.getWeights();
+  const std::vector<mat>& ppw = _pp.getWeights();
   foreach (i, ppw)
     ppw[i].saveas(folder + "pp.w." + int2str(i));
 
   ext::save(this->_w, folder + "m.w");
 
-  const STL_VECTOR<mat>& dtww = _dtw.getWeights();
+  const std::vector<mat>& dtww = _dtw.getWeights();
   foreach (i, dtww)
     dtww[i].saveas(folder + "dtw.w." + int2str(i));
 }
