@@ -238,17 +238,40 @@ float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, fl
   // interior points
   for (int x = 1; x < rows; ++x) {
     for (int y = 1; y < cols; ++y) {
-      // float temp = min(alpha[(x-1) * cols + y], alpha[x * cols + y-1]);
-      // alpha[x * cols + y] = min(temp, alpha[(x-1) * cols + y-1]) + pdist[x * cols + y];
       alpha[x * cols + y] = (float) smin(alpha[(x-1) * cols + y], alpha[x * cols + y-1], alpha[(x-1) * cols + y-1], eta) + pdist[x * cols + y];
     }
   }
 
   distance = alpha[rows * cols - 1];
   // ====== End of Main ======
-  
-  if (isAlphaNull)
-    delete [] alpha;
+
+  if (beta != NULL) {
+    beta[rows * cols - 1] = 0;
+    int x, y;
+    y = cols - 1;
+    for (x = rows - 2; x >= 0; --x)
+      beta[x * cols + y] = beta[(x+1) * cols + y] + pdist[(x+1) * cols + y];
+
+    x = rows - 1;
+    for (y = cols - 2; y >= 0; --y)
+      beta[x * cols + y] = beta[x * cols + (y+1)] + pdist[x * cols + (y+1)];
+
+    for (x = rows - 2; x >= 0; --x) {
+      for (y = cols - 2; y >= 0; --y) {
+	int p1 =  x    * cols + y + 1,
+	    p2 = (x+1) * cols + y    ,
+	    p3 = (x+1) * cols + y + 1;
+
+	float s1 = beta[p1] + pdist[p1],
+	      s2 = beta[p2] + pdist[p2],
+	      s3 = beta[p3] + pdist[p3];
+
+	beta[x * cols + y] = smin(s1, s2, s3, eta);
+      }
+    }
+  }
+
+  if (isAlphaNull) delete [] alpha;
 
   return distance;
 }
