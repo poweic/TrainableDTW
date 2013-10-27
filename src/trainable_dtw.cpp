@@ -108,9 +108,9 @@ void dtw_model::train(Corpus& corpus, size_t batchSize) {
     showMsg(i);
 
     string msg = "Batch updates (" + int2str(nBatch) + " batches in total)";
-    ProgressBar pbar;
+    //ProgressBar pbar;
     range (j, nBatch) {
-      pbar.refresh(j, nBatch, int2str(j) + "-th " + msg);
+      //pbar.refresh(j, nBatch, int2str(j) + "-th " + msg);
 
       size_t begin = batchSize * j;
       size_t end   = batchSize * (j+1);
@@ -348,8 +348,10 @@ void dtwdiag::calcDeltaTheta(const CumulativeDtwRunner* dtw, void* dThetaPtr) {
 
       coeff = exp(SMIN::eta * coeff);
 
-      if (coeff != coeff)
+      if (coeff != coeff) {
 	cout << "coeff is nan" << endl;
+	exit(-1);
+      }
 
       dTheta += coeff * gradient(qi, dj);
     }

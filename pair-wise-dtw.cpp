@@ -11,11 +11,11 @@ using namespace std;
 void selfTest();
 float calcError(float* s1, float* s2, int N);
 distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn);
-void normalize(float* m, int N, float eta);
-void normalize_in_log(float* m, int N);
+// void normalize(float* m, int N, float eta);
+// void normalize_in_log(float* m, int N);
+void cvtDistanceToSimilarity(float* m, int N);
 void setDiagToOne(float* m, int N);
-void setDiagToZero(float* m, int N);
-void print(float* m, int N);
+void print(FILE* fid, float* m, int N);
 
 int main (int argc, char* argv[]) {
 
@@ -28,7 +28,7 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance options")
-    .add("--scale", "log-scale (log) as distance or linear-scale (linear) as probability density")
+    .add("--scale", "log-scale (log) as distance or linear-scale (linear) as probability density", false, "log")
     .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"")
     .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-2");
@@ -66,23 +66,16 @@ int main (int argc, char* argv[]) {
   else
     scores = computePairwiseDTW(data, offset, N, dim, *dist, eta);
 
-  setDiagToZero(scores, N);
+  // print(stdout, scores, N);
 
-  if (scale == "linear")
+  cvtDistanceToSimilarity(scores, N);
+  /*if (scale == "linear")
     normalize(scores, N, eta);
-  else if (scale == "log")
-    normalize_in_log(scores, N);
   else
-    exit(-1);
+    normalize_in_log(scores, N);*/
 
   FILE* fid = (output_fn.empty()) ? stdout : fopen(output_fn.c_str(), "w");
-
-  range (i, N) {
-    range (j, N)
-      fprintf(fid, "%.7f ", scores[i * N + j]);
-    fprintf(fid, "\n");
-  }
-  
+  print(fid, scores, N);
   if (fid != stdout) 
     fclose(fid);
 
@@ -95,6 +88,7 @@ int main (int argc, char* argv[]) {
 
 distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) {
   distance_fn* dist;
+
   if (dist_type == "ma") {
     dist = new mahalanobis_fn(dim);
     dynamic_cast<mahalanobis_fn*>(dist)->setDiag(theta_fn);
@@ -113,11 +107,11 @@ distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) 
   return dist;
 }
 
-void print(float* m, int N) {
+void print(FILE* fid, float* m, int N) {
   range (i, N) {
     range (j, N)
-      printf("%.6f ", m[i * N + j]);
-    printf("\n");
+      fprintf(fid, "%.6f ", m[i * N + j]);
+    fprintf(fid, "\n");
   }
 }
 
@@ -135,11 +129,6 @@ float calcError(float* s1, float* s2, int N) {
 void setDiagToOne(float* m, int N) {
   range (i, N)
     m[i * N + i] = 1;
-}
-
-void setDiagToZero(float* m, int N) {
-  range (i, N)
-    m[i * N + i] = 0;
 }
 
 void normalize(float* m, int N, float eta) {
@@ -167,23 +156,51 @@ void normalize(float* m, int N, float eta) {
     m[i] = exp(eta * m[i]);
 }
 
+void cvtDistanceToSimilarity(float* m, int N) {
+  float min = m[0];
+  float max = m[0];
+
+  range (i, N) {
+    range (j, i) {
+      if (m[i * N + j] > max) max = m[i * N + j];
+      if (m[i * N + j] < min) min = m[i * N + j];
+    }
+  }
+
+  printf("max = %.7f, min = %.7f \n", max, min);
+
+  if (min - max == 0)
+    return;
+  
+  range (i, N)
+    m[i*N + i] = min;
+  
+  range (i, N*N)
+    m[i] = abs((m[i] - max) / (min - max));
+}
+
 void normalize_in_log(float* m, int N) {
 
   float min = m[0];
   float max = m[0];
 
   range (i, N) {
-    range (j, N) {
+    range (j, i) {
       if (m[i * N + j] > max) max = m[i * N + j];
       if (m[i * N + j] < min) min = m[i * N + j];
     }
   }
 
+  printf("max = %.7f, min = %.7f \n", max, min);
+
   if (min - max == 0)
     return;
   
+  range (i, N)
+    m[i*N + i] = min;
+  
   range (i, N*N)
-    m[i] = (m[i] - max) / (min - max);
+    m[i] = abs((m[i] - max) / (min - max));
 }
 
 void selfTest() {
@@ -201,7 +218,7 @@ void selfTest() {
   timer.stop();
   printf("Elasped time: %.2f secs\n", timer.getTime());
 
-  print(scores_from_cuda, N);
+  print(stdout, scores_from_cuda, N);
 
 
   printf(GREEN"===== CPU version ====="COLOREND);
@@ -214,7 +231,7 @@ void selfTest() {
   timer.stop();
   printf("Elasped time: %.2f secs\n", timer.getTime());
 
-  print(scores, N);
+  print(stdout, scores, N);
 
 
   printf(GREEN"===== Summary ====="COLOREND);
