@@ -2,6 +2,17 @@
 #define __DNN_H_
 
 #include <blas.h>
+
+#ifndef __CUDACC__
+
+#define WHERE std
+#include <blas.h>
+#include <math_ext.h>
+typedef Matrix2D<float> mat; typedef vector<float> vec;
+
+#else
+
+#define WHERE thrust
 #include <device_blas.h>
 #include <device_math_ext.h>
 
@@ -9,92 +20,83 @@
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
 
-#ifndef __CUDACC__
-#define WHERE std
-#else
-#define WHERE thrust
 #endif
 
 #define dsigma(x) ((x) & ((float) 1.0 - (x)))
-#define STL_VECTOR std::vector
-
-//using namespace std;
-
-typedef Matrix2D<float> mat; typedef vector<float> vec;
-// typedef device_matrix<float> mat; typedef thrust::device_vector<float> vec;
 
 vec loadvector(string filename);
 
 class DNN {
 public:
   DNN();
-  DNN(const STL_VECTOR<size_t>& dims);
+  DNN(const std::vector<size_t>& dims);
   DNN(const DNN& source);
   DNN& operator = (DNN rhs);
 
   void load(string folder);
 
   void randInit();
-  void feedForward(const vec& x, STL_VECTOR<vec>* hidden_output);
-  void feedForward(const mat& x, STL_VECTOR<mat>* hidden_output);
+  void feedForward(const vec& x, std::vector<vec>* hidden_output);
+  void feedForward(const mat& x, std::vector<mat>* hidden_output);
 
-  void backPropagate(vec& p, STL_VECTOR<vec>& hidden_output, STL_VECTOR<mat>& gradient);
-  void backPropagate(mat& p, STL_VECTOR<mat>& hidden_output, STL_VECTOR<mat>& gradient, const vec& coeff);
+  void backPropagate(vec& p, std::vector<vec>& hidden_output, std::vector<mat>& gradient);
+  void backPropagate(mat& p, std::vector<mat>& hidden_output, std::vector<mat>& gradient, const vec& coeff);
 
   size_t getNLayer() const;
   size_t getDepth() const;
-  void getEmptyGradient(STL_VECTOR<mat>& g) const;
+  void getEmptyGradient(std::vector<mat>& g) const;
   void print() const;
 
-  STL_VECTOR<mat>& getWeights();
-  const STL_VECTOR<mat>& getWeights() const;
-  STL_VECTOR<size_t>& getDims();
-  const STL_VECTOR<size_t>& getDims() const;
+  std::vector<mat>& getWeights();
+  const std::vector<mat>& getWeights() const;
+  std::vector<size_t>& getDims();
+  const std::vector<size_t>& getDims() const;
 
   friend void swap(DNN& lhs, DNN& rhs);
 
 private:
-  STL_VECTOR<size_t> _dims;
-  STL_VECTOR<mat> _weights;
+  std::vector<size_t> _dims;
+  std::vector<mat> _weights;
 };
 
 void swap(DNN& lhs, DNN& rhs);
 
 #define HIDDEN_OUTPUT_ALIASING(O, x, y, z, w) \
-STL_VECTOR<vec>& x	= O.hox; \
-STL_VECTOR<vec>& y	= O.hoy; \
+  std::vector<vec>& x	= O.hox; \
+std::vector<vec>& y	= O.hoy; \
 vec& z		= O.hoz; \
-STL_VECTOR<vec>& w	= O.hod;
+std::vector<vec>& w	= O.hod;
 
 #define GRADIENT_REF(g, g1, g2, g3, g4) \
-STL_VECTOR<mat>& g1	= g.grad1; \
-STL_VECTOR<mat>& g2 = g.grad2; \
+  std::vector<mat>& g1	= g.grad1; \
+std::vector<mat>& g2 = g.grad2; \
 vec& g3		= g.grad3; \
-STL_VECTOR<mat>& g4 = g.grad4;
+std::vector<mat>& g4 = g.grad4;
 
 #define GRADIENT_CONST_REF(g, g1, g2, g3, g4) \
-const STL_VECTOR<mat>& g1	= g.grad1; \
-const STL_VECTOR<mat>& g2 = g.grad2; \
+const std::vector<mat>& g1	= g.grad1; \
+const std::vector<mat>& g2 = g.grad2; \
 const vec& g3		= g.grad3; \
-const STL_VECTOR<mat>& g4 = g.grad4;
+const std::vector<mat>& g4 = g.grad4;
 
 class HIDDEN_OUTPUT {
   public:
-    STL_VECTOR<vec> hox;
-    STL_VECTOR<vec> hoy;
+    std::vector<vec> hox;
+    std::vector<vec> hoy;
     vec hoz;
-    STL_VECTOR<vec> hod;
+    std::vector<vec> hod;
 };
 
 void swap(HIDDEN_OUTPUT& lhs, HIDDEN_OUTPUT& rhs);
 
 class GRADIENT {
   public:
-    STL_VECTOR<mat> grad1;
-    STL_VECTOR<mat> grad2;
+    std::vector<mat> grad1;
+    std::vector<mat> grad2;
     vec grad3;
-    STL_VECTOR<mat> grad4;
+    std::vector<mat> grad4;
 };
 
 void swap(GRADIENT& lhs, GRADIENT& rhs);
@@ -103,7 +105,7 @@ class Model {
 public:
 
   Model();
-  Model(const STL_VECTOR<size_t>& pp_dim, const STL_VECTOR<size_t>& dtw_dim);
+  Model(const std::vector<size_t>& pp_dim, const std::vector<size_t>& dtw_dim);
   Model(const Model& src);
   Model& operator = (Model rhs);
 

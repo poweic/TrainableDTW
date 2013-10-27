@@ -22,8 +22,6 @@ Array<string> getPhoneList(string filename);
 void signalHandler(int param);
 void regSignalHandler();
 
-string scoreDir;
-
 int main (int argc, char* argv[]) {
   
   CmdParser cmdParser(argc, argv);
@@ -41,7 +39,6 @@ int main (int argc, char* argv[]) {
     .addGroup("Training options")
     .add("--model", "choose a distance model, either \"dnn\" or \"diag\"", false, "dnn")
     .add("--batch-size", "number of training samples per batch", false, "1000")
-    .add("--resume-training", "resume training using the previous condition", false, "false")
     .add("--learning-rate", "learning rate", false, "0.0001")
     .add("--theta-output", "choose a file to save theta", false, ".theta.restore");
 
@@ -58,31 +55,23 @@ int main (int argc, char* argv[]) {
   cmdParser
     .addGroup("Evaluation options")
     .add("-d", "directory for saving/loading scores", false)
-    .add("-o", "filename for scores matrix", false)
-    .add("-n", "pick n random instances for each phone when evaulating", false, "100")
-    .add("--re-evaluate", "Re-evaluate pair-wise distances for each phones", false, "false");
+    .add("-o", "filename for scores matrix", false);
 
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
-
-  scoreDir = cmdParser.find("-d") + "/";
-  exec("mkdir -p " + scoreDir);
 
   // Parsering Command Arguments
   string phase = cmdParser.find("-p");
 
   size_t batchSize	  = str2int(cmdParser.find("--batch-size"));
-  size_t N	    	  = str2int(cmdParser.find("-n"));
   string feat_dir   	  = cmdParser.find("--feat-dir");
 
   string phones_filename  = cmdParser.find("--phone-mapping");
   Array<string> phones	  = getPhoneList(phones_filename);
+
   string matFile	  = cmdParser.find("-o");
-  bool resume		  = cmdParser.find("--resume-training") == "true";
-  bool reevaluate	  = cmdParser.find("--re-evaluate") == "true"; 
-  SMIN::eta		  = str2double(cmdParser.find("--eta"));
-  bool validationOnly	  = cmdParser.find("--validation-only") == "true";
-  float lr		  = str2float(cmdParser.find("--learning-rate"));
+  double eta		  = str2double(cmdParser.find("--eta"));
+  float  lr		  = str2float(cmdParser.find("--learning-rate"));
   size_t nHiddenLayer	  = str2int(cmdParser.find("--layers"));
   size_t nHiddenNodes	  = str2int(cmdParser.find("--hidden-nodes"));
   string m		  = cmdParser.find("--model");
@@ -94,6 +83,7 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
+  SMIN::eta = eta;
   Corpus corpus("data/phones.txt", feat_dir);
 
   if (m == "dnn") {

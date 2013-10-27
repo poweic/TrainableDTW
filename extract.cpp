@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 
   printf("Loading alignments and model...\n");
   map<string, vector<Phone> > phoneLabels;
-  int nInstance = load(alignmentFile, modelFile, phoneLabels);
+  size_t nInstance = load(alignmentFile, modelFile, phoneLabels);
   printf(GREEN"[Done]"COLOREND"\n");
 
   map<size_t, vector<FeatureSeq> > phoneInstances;
@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
   }
 
   printf("Loading feature archive...\n");
-  int n = loadFeatureArchive(featArk, phoneLabels, phoneInstances);
+  size_t n = loadFeatureArchive(featArk, phoneLabels, phoneInstances);
   check_equal(n, nInstance);
   printf(GREEN"[Done]"COLOREND"\n");
 

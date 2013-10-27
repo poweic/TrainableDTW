@@ -42,7 +42,7 @@ vector<T> operator * (const Matrix2D<T>& A, const vector<T>& col_vector) {
   assert(A.getCols() == col_vector.size());
 
   vector<T> y(A.getRows());
-  int cols = A.getCols();
+  size_t cols = A.getCols();
 
   foreach (i, y) {
     for (size_t j=0; j<cols; ++j)
@@ -57,7 +57,7 @@ vector<T> operator * (const vector<T>& row_vector, const Matrix2D<T>& A) {
   assert(row_vector.size() == A.getRows());
 
   vector<T> y(A.getCols());
-  int rows = A.getRows();
+  size_t rows = A.getRows();
 
   foreach (i, y) {
     for (size_t j=0; j<rows; ++j)

@@ -1,6 +1,16 @@
 #include <fast_dtw.h>
 #define __pow__(x) ((x)*(x))
 
+// =======================================
+// ===== Dynamic Time Warping in CPU =====
+// =======================================
+
+void pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
+  range (x, rows)
+    range (y, cols)
+      pdist[x * cols + y] = d(f1 + x * dim, f2 + y * dim, dim);
+}
+
 __device__ float 
 euclidean(const float* x, const float* y, size_t dim) {
   float d = 0;
@@ -9,62 +19,10 @@ euclidean(const float* x, const float* y, size_t dim) {
   return sqrt(d);
 }
 
-__global__ void pairWiseKernel(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float* pdist) {
-
-  int x = blockIdx.x*blockDim.x + threadIdx.x;
-  int y = blockIdx.y*blockDim.y + threadIdx.y;
-
-  if(x < 0 || x > rows-1 || y < 0 || y > cols-1)
-    return;
-
-  int index = x * cols + y; 
-  pdist[index] = euclidean(f1 + x*dim, f2 + y * dim, dim);
-}
-
-float pair_distance(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float eta, float* pdist, distance_fn& d) {
-  for (int x = 0; x < rows; ++x)
-    for (int y = 0; y < cols; ++y)
-      pdist[x * cols + y] = d(f1 + x * dim, f2 + y * dim, dim);
-}
-
-float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, cudaStream_t& stream) {
-  const int BLOCK_SIZE = 8;
-  dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
-  dim3 grid(w / BLOCK_SIZE, h / BLOCK_SIZE);
-  if(w % BLOCK_SIZE > 0) ++grid.x;
-  if(h % BLOCK_SIZE > 0) ++grid.y;
-
-  pairWiseKernel<<<grid, threads, 0, stream>>>(f1, f2, w, h, dim, pdist);
-}
-
-float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist) {
-  const int BLOCK_SIZE = 64;
-  dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
-  dim3 grid(w / BLOCK_SIZE, h / BLOCK_SIZE);
-  if(w % BLOCK_SIZE > 0) ++grid.x;
-  if(h % BLOCK_SIZE > 0) ++grid.y;
-
-  pairWiseKernel<<<grid, threads>>>(f1, f2, w, h, dim, pdist);
-}
-
-
-void callback(cudaStream_t stream, cudaError_t status, void* userData) {
-
-  float* pdist = ((P_DIST*) userData)->pdist;
-  int w = ((P_DIST*) userData)->w;
-  int h = ((P_DIST*) userData)->h;
-  int dim = ((P_DIST*) userData)->dim;
-  float* d = ((P_DIST*) userData)->d;
-
-  *d = fast_dtw(pdist, w, h, dim, -4, NULL, NULL);
-
-  StreamManager::getInstance().pop_front();
-}
-
 float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, int dim, distance_fn& fn, float eta) {
 
   size_t MAX_LENGTH = 0;
-  range (i, N) {
+  for (int i=0; i<N; ++i) {
     unsigned int length = (offset[i+1] - offset[i]) / dim;
     if ( length > MAX_LENGTH)
 	MAX_LENGTH = length;
@@ -95,6 +53,160 @@ float* computePairwiseDTW(const float* data, const unsigned int* offset, int N, 
   delete [] pdist;
 
   return scores;
+}
+
+inline float addlog(float x, float y) {
+  const float MAX_DIFF = -708;
+
+  if (x < y)
+    std::swap(x, y);
+
+  float diff = y - x;
+  if ( diff < MAX_DIFF )
+    return x;
+
+  return x + log(1.0 + exp(diff));
+}
+
+inline float smin(float x, float y, float z, float eta) {
+  return addlog(addlog(eta * x, eta * y), eta * z) / eta;
+}
+
+size_t findMaxLength(const unsigned int* offset, int N, int dim) {
+  size_t MAX_LENGTH = 0;
+  for (int i=0; i<N; ++i) {
+    unsigned int length = (offset[i+1] - offset[i]) / dim;
+    if ( length > MAX_LENGTH)
+	MAX_LENGTH = length;
+  }
+  return MAX_LENGTH;
+}
+
+float** malloc2D(size_t m, size_t n) {
+  float** p = new float*[m];
+  range (i, m)
+    p[i] = new float[n];
+  return p;
+}
+
+void free2D(float** p, size_t m) {
+  assert(p != NULL);
+
+  range (i, m)
+    delete p[i];
+  delete [] p;
+}
+
+float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, float* alpha, float* beta) {
+  
+  float distance = 0;
+
+  bool isAlphaNull = (alpha == NULL);
+
+  if (isAlphaNull)
+    alpha = new float[rows * cols];
+
+  // ===== Begin of Main =====
+  // x == y == 0 
+  alpha[0] = pdist[0];
+
+  // y == 0
+  for (size_t x = 1; x < rows; ++x)
+    alpha[x * cols] = alpha[(x-1) * cols] + pdist[x * cols];
+
+  // x == 0
+  for (size_t y = 1; y < cols; ++y)
+    alpha[y] = alpha[y-1] + pdist[y];
+
+  // interior points
+  for (size_t x = 1; x < rows; ++x) {
+    for (size_t y = 1; y < cols; ++y) {
+      alpha[x * cols + y] = (float) smin(alpha[(x-1) * cols + y], alpha[x * cols + y-1], alpha[(x-1) * cols + y-1], eta) + pdist[x * cols + y];
+    }
+  }
+
+  distance = alpha[rows * cols - 1];
+  // ====== End of Main ======
+
+  if (beta != NULL) {
+    beta[rows * cols - 1] = 0;
+    size_t x, y;
+    y = cols - 1;
+    for (x = rows - 2; x >= 0; --x)
+      beta[x * cols + y] = beta[(x+1) * cols + y] + pdist[(x+1) * cols + y];
+
+    x = rows - 1;
+    for (y = cols - 2; y >= 0; --y)
+      beta[x * cols + y] = beta[x * cols + (y+1)] + pdist[x * cols + (y+1)];
+
+    for (x = rows - 2; x >= 0; --x) {
+      for (y = cols - 2; y >= 0; --y) {
+	size_t p1 =  x    * cols + y + 1,
+	       p2 = (x+1) * cols + y    ,
+	       p3 = (x+1) * cols + y + 1;
+
+	float s1 = beta[p1] + pdist[p1],
+	      s2 = beta[p2] + pdist[p2],
+	      s3 = beta[p3] + pdist[p3];
+
+	beta[x * cols + y] = smin(s1, s2, s3, eta);
+      }
+    }
+  }
+
+  if (isAlphaNull) delete [] alpha;
+
+  return distance;
+}
+
+// =======================================
+// ===== Dynamic Time Warping in GPU =====
+// =======================================
+
+#ifdef __CUDACC__
+__global__ void pairWiseKernel(const float* f1, const float* f2, size_t rows, size_t cols, size_t dim, float* pdist) {
+
+  int x = blockIdx.x*blockDim.x + threadIdx.x;
+  int y = blockIdx.y*blockDim.y + threadIdx.y;
+
+  if(x < 0 || x > rows-1 || y < 0 || y > cols-1)
+    return;
+
+  int index = x * cols + y; 
+  pdist[index] = euclidean(f1 + x*dim, f2 + y * dim, dim);
+}
+
+float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, cudaStream_t& stream) {
+  const int BLOCK_SIZE = 8;
+  dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 grid(w / BLOCK_SIZE, h / BLOCK_SIZE);
+  if(w % BLOCK_SIZE > 0) ++grid.x;
+  if(h % BLOCK_SIZE > 0) ++grid.y;
+
+  pairWiseKernel<<<grid, threads, 0, stream>>>(f1, f2, w, h, dim, pdist);
+}
+
+float pair_distance_in_gpu(const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist) {
+  const int BLOCK_SIZE = 64;
+  dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
+  dim3 grid(w / BLOCK_SIZE, h / BLOCK_SIZE);
+  if(w % BLOCK_SIZE > 0) ++grid.x;
+  if(h % BLOCK_SIZE > 0) ++grid.y;
+
+  pairWiseKernel<<<grid, threads>>>(f1, f2, w, h, dim, pdist);
+}
+
+void callback(cudaStream_t stream, cudaError_t status, void* userData) {
+
+  float* pdist = ((P_DIST*) userData)->pdist;
+  int w = ((P_DIST*) userData)->w;
+  int h = ((P_DIST*) userData)->h;
+  int dim = ((P_DIST*) userData)->dim;
+  float* d = ((P_DIST*) userData)->d;
+
+  *d = fast_dtw(pdist, w, h, dim, -4, NULL, NULL);
+
+  StreamManager::getInstance().pop_front();
 }
 
 float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, int N, int dim) {
@@ -172,109 +284,6 @@ float* computePairwiseDTW_in_gpu(const float* data, const unsigned int* offset, 
   return scores;
 }
 
-inline float addlog(float x, float y) {
-  const float MAX_DIFF = -708;
-
-  if (x < y)
-    std::swap(x, y);
-
-  float diff = y - x;
-  if ( diff < MAX_DIFF )
-    return x;
-
-  return x + log(1.0 + exp(diff));
-}
-
-inline float smin(float x, float y, float z, float eta) {
-  return addlog(addlog(eta * x, eta * y), eta * z) / eta;
-}
-
-size_t findMaxLength(const unsigned int* offset, int N, int dim) {
-  size_t MAX_LENGTH = 0;
-  range (i, N) {
-    unsigned int length = (offset[i+1] - offset[i]) / dim;
-    if ( length > MAX_LENGTH)
-	MAX_LENGTH = length;
-  }
-  return MAX_LENGTH;
-}
-
-float** malloc2D(size_t m, size_t n) {
-  float** p = new float*[m];
-  range (i, m)
-    p[i] = new float[n];
-  return p;
-}
-
-void free2D(float** p, size_t m) {
-  assert(p != NULL);
-
-  range (i, m)
-    delete p[i];
-  delete [] p;
-}
-
-float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, float* alpha, float* beta) {
-  
-  float distance = 0;
-
-  bool isAlphaNull = (alpha == NULL);
-
-  if (isAlphaNull)
-    alpha = new float[rows * cols];
-
-  // ===== Begin of Main =====
-  // x == y == 0 
-  alpha[0] = pdist[0];
-
-  // y == 0
-  for (int x = 1; x < rows; ++x)
-    alpha[x * cols] = alpha[(x-1) * cols] + pdist[x * cols];
-
-  // x == 0
-  for (int y = 1; y < cols; ++y)
-    alpha[y] = alpha[y-1] + pdist[y];
-
-  // interior points
-  for (int x = 1; x < rows; ++x) {
-    for (int y = 1; y < cols; ++y) {
-      alpha[x * cols + y] = (float) smin(alpha[(x-1) * cols + y], alpha[x * cols + y-1], alpha[(x-1) * cols + y-1], eta) + pdist[x * cols + y];
-    }
-  }
-
-  distance = alpha[rows * cols - 1];
-  // ====== End of Main ======
-
-  if (beta != NULL) {
-    beta[rows * cols - 1] = 0;
-    int x, y;
-    y = cols - 1;
-    for (x = rows - 2; x >= 0; --x)
-      beta[x * cols + y] = beta[(x+1) * cols + y] + pdist[(x+1) * cols + y];
-
-    x = rows - 1;
-    for (y = cols - 2; y >= 0; --y)
-      beta[x * cols + y] = beta[x * cols + (y+1)] + pdist[x * cols + (y+1)];
-
-    for (x = rows - 2; x >= 0; --x) {
-      for (y = cols - 2; y >= 0; --y) {
-	int p1 =  x    * cols + y + 1,
-	    p2 = (x+1) * cols + y    ,
-	    p3 = (x+1) * cols + y + 1;
-
-	float s1 = beta[p1] + pdist[p1],
-	      s2 = beta[p2] + pdist[p2],
-	      s3 = beta[p3] + pdist[p3];
-
-	beta[x * cols + y] = smin(s1, s2, s3, eta);
-      }
-    }
-  }
-
-  if (isAlphaNull) delete [] alpha;
-
-  return distance;
-}
 
 bool StreamManager::pop_front() {
   --_counter;
@@ -317,6 +326,7 @@ StreamManager::~StreamManager() {
   range (i, _nStream)
     CCE(cudaStreamDestroy(_stream[i]));
 }
+#endif
 
 /*extern "C" __global__
 void dtwKernel(float* distance, const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, float* alpha, float* beta) {

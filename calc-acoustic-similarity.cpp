@@ -6,22 +6,16 @@
 #include <util.h>
 #include <utility.h>
 #include <profile.h>
-#include <trainable_dtw.h>
 
-//#include <cdtw.h>
+#include <cdtw.h>
 
 using namespace DtwUtil;
 using namespace std;
 
-
-vector<size_t> theta;
-Model model;
-
-//typedef Matrix2D<double> mat;
+typedef Matrix2D<float> mat;
 
 void dumpMfccAsKaldiArk(const Array<string>& lists);
 void normalize(mat& m, int type = 1);
-// double cdtw(DtwParm& q_parm, DtwParm& d_parm);
 double cdtw(const string& f1, const string& f2);
 void chooseLargestGranularity(const string& path, Array<string>& lists);
 enum DTW_TYPE { FIXDTW, FFDTW, SCDTW, CDTW };
@@ -75,8 +69,7 @@ int main (int argc, char* argv[]) {
 			  "fixdtw:\t FixFrameDtwRunner. head-to-head, tail-to-tail\n"
 			  "ffdtw:\t FreeFrameDtwRunner. no head-to-head, tail-to-tail constraint\n"
 			  "scdtw:\t SlopeConDtwRunner. Slope-conditioned DTW\n"
-			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail.")
-    .add("--normalize", "Whether to normalize the acoustic similarity to [0, 1]", false, "true");
+			  "cdtw:\t CumulativeDtwRunner. Cumulative DTW, considering all paths from head-to-tail.");
 
   cmdParser
     .addGroup("Distance options")
@@ -89,26 +82,21 @@ int main (int argc, char* argv[]) {
   Profile profile;
   profile.tic();
 
-  model.load("data/dtwdnn.model/");
   // =====================================================
   string path = cmdParser.find("-d") + "/";
   string mat_filename = cmdParser.find("-o");
   string list_filename = cmdParser.find("--list");
-  bool normalization = cmdParser.find("--normalize") == "false" ? false : true;
-  string theta_filename = cmdParser.find("--theta");
+  string theta_fn = cmdParser.find("--theta");
   SMIN::eta = str2double(cmdParser.find("--eta"));
 
-  Bhattacharyya::setDiagFromFile(theta_filename);
+  Bhattacharyya::setDiagFromFile(theta_fn);
 
   DTW_TYPE type = getDtwType(cmdParser.find("--dtw-type"));
 
   Array<string> lists(list_filename);
   chooseLargestGranularity(path, lists);
 
-  // dumpMfccAsKaldiArk(lists);
-  // return 0;
-
-  int nSegment = lists.size();
+  size_t nSegment = lists.size();
 
   vector<DtwParm> parms;
   foreach (i, lists)
@@ -120,16 +108,13 @@ int main (int argc, char* argv[]) {
 
     range (j, nSegment) {
       if (j > i) break;
-      // cout << "(i, j) = (" << i << ", " << j << ")" << endl;
 
       double score = 0;
       switch (type) {
 	case CDTW:
 	  score = cdtw(lists[i], lists[j]);
-	  // FIXME DtwParm seemed to have illed copy constructor !!!
-	  // score = dtwdnn::dtw(lists[i], lists[j]);
 	  break;
-	/*case FIXDTW:
+	case FIXDTW:
 	  score = other_dtw<FixFrameDtwRunner>(parms[i], parms[j]);
 	  break;
 	case SCDTW:
@@ -138,7 +123,7 @@ int main (int argc, char* argv[]) {
 	case FFDTW:
 	default:
 	  score = other_dtw<FreeFrameDtwRunner>(parms[i], parms[j]);
-	  break;*/
+	  break;
       }
 
       scores[i][j] = scores[j][i] = score;
@@ -162,10 +147,10 @@ void dumpMfccAsKaldiArk(const Array<string>& lists) {
     DtwParm p(lists[i]);
     size_t feat_dim = p.Feat().LF();
     size_t totalTime = p.Feat().LT();
-    for (int t=0; t<totalTime; ++t) {
+    for (size_t t=0; t<totalTime; ++t) {
       cout << "  ";
 
-      for (int d=0; d<feat_dim; ++d)
+      for (size_t d=0; d<feat_dim; ++d)
 	cout << p.Feat()[t][d] << " ";
 
       if (t != totalTime - 1)

@@ -27,7 +27,7 @@ void printSimilarity(Matrix2D<float> m, const vector<string>& docid);
 typedef map<string, vector<string> > Answer;
 Answer loadAnswer(string filename);
 void cutoffWaveFilename(vector<string> &docid);
-size_t find(const vector<string>& arr, const string s);
+int find(const vector<string>& arr, const string s);
 
 int main (int argc, char* argv[]) {
 
@@ -188,7 +188,7 @@ float computeDTW(const float* data, const unsigned int* offset, int N, int dim, 
 }
 
 void printSimilarity(Matrix2D<float> m, const vector<string>& docids) {
-  int M = m.getRows();
+  size_t M = m.getRows();
 
   range (i, M) {
     printf(BLUE"%s\t"COLOREND, docids[i].c_str());
@@ -216,7 +216,7 @@ vector<string> getRecalledDocId(const vector<string>& retrieved, const vector<st
 vector<size_t> getRecalls(const vector<string>& retrieved, const vector<string>& answers) {
   vector<size_t> positions;
   foreach (i, answers) {
-    size_t pos = find(retrieved, answers[i]);
+    int pos = find(retrieved, answers[i]);
     if (pos != -1)
       positions.push_back(pos);
   }
@@ -231,7 +231,7 @@ void cutoffWaveFilename(vector<string> &docid) {
   }
 }
 
-size_t find(const vector<string>& arr, const string s) {
+int find(const vector<string>& arr, const string s) {
   foreach (i, arr)
     if (arr[i] == s) return i;
   return -1;
@@ -368,8 +368,8 @@ void getSubData(float** sub_data, unsigned int** sub_offset, const float* data, 
 */
 
 void print(float* m, int N) {
-  range (i, N) {
-    range (j, N)
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<N; ++j)
       printf("%.3f ", m[i * N + j]);
     printf("\n");
   }

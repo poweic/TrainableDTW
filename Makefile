@@ -1,16 +1,14 @@
-VULCAN_ROOT=/media/Data1/Vulcan.v.0.12
+VULCAN_ROOT=/share/Vulcan.v.0.12
 UGOC_ROOT=/home/boton/Dropbox/DSP/ugoc/
 RTK_UTIL_ROOT=/home/boton/Dropbox/DSP/RTK/utility
 
 CC=gcc
-CXX=g++
+CXX=g++-4.6 -Werror
 CFLAGS=
 NVCC=nvcc -arch=sm_21 -w
 
 INCLUDE= -I include/ \
 	 -I /usr/local/boton/include/ \
-	 -I $(VULCAN_ROOT)/am \
-	 -I $(VULCAN_ROOT)/feature \
 	 -I $(VULCAN_ROOT) \
 	 -I $(UGOC_ROOT) \
 	 -I $(UGOC_ROOT)/libsegtree/include \
@@ -19,11 +17,9 @@ INCLUDE= -I include/ \
 	 -I $(UGOC_ROOT)/libutility/include \
 	 -I /share/Local/ \
  	 -I /usr/local/cuda/samples/common/inc/ \
-	 -I /usr/local/cuda/include
-
-#-I $(RTK_UTIL_ROOT)/include
-#-I $(UGOC_ROOT)/libfeature/include \
-#-I $(UGOC_ROOT)/libutility/include \
+	 -I /usr/local/cuda/include \
+	 -isystem $(VULCAN_ROOT)/am \
+	 -isystem $(VULCAN_ROOT)/feature
 
 CPPFLAGS= -std=c++0x -Wall -fstrict-aliasing $(CFLAGS) $(INCLUDE)
 
@@ -56,6 +52,7 @@ LIBRARY= -lpbar \
 	 $(VULCAN_ROOT)/common/vulcan-common.a\
 	 -lgsl\
 	 -lcblas\
+	 -latlas\
 	 -ldtw\
 	 -lfeature\
 	 -lsegtree\
@@ -76,29 +73,29 @@ CU_LIB=-lcuda -lcublas
 extract: $(OBJ) extract.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 
-dtw-on-answer: $(OBJ) dtw-on-answer.cpp obj/fast_dtw.o
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 kaldi-to-htk: $(OBJ) kaldi-to-htk.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
 htk-to-kaldi: $(OBJ) htk-to-kaldi.cpp
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-#train: $(OBJ) train.cpp obj/trainable_dtw.o obj/phone_stat.o
-	#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
-train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+
+train: $(OBJ) train.cpp obj/trainable_dtw.o obj/phone_stat.o obj/dnn.o
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
+#train: $(OBJ) train.cu obj/trainable_dtw.o obj/phone_stat.o $(CU_OBJ)
+#	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 test: $(OBJ) test.cpp 
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
-#calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp obj/trainable_dtw.o 
-#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
-
-calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cu obj/trainable_dtw.o 
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_OBJ) $(CU_LIB)
+calc-acoustic-similarity: $(OBJ) calc-acoustic-similarity.cpp
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
 
 pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
-	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#pair-wise-dtw: $(OBJ) pair-wise-dtw.cpp obj/fast_dtw.o
+#	$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
-#$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) 
+dtw-on-answer: $(OBJ) dtw-on-answer.cpp obj/fast_dtw.o
+	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)
+#$(NVCC) $(CFLAGS) $(INCLUDE) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY) $(CU_LIB)
 
 ipc_example: $(OBJ) ipc_example.cpp ipc.h
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIBRARY_PATH) $(LIBRARY)

@@ -104,7 +104,6 @@ namespace ext {
 
   template <typename T>
   T randn(T mean, T var) {
-    static int counter = 0;
     T sz=0.0,v1,v2,sigma,ans;
     T seed1,seed2;
     sigma=sqrt(var);

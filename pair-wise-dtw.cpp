@@ -14,7 +14,6 @@ distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn);
 // void normalize(float* m, int N, float eta);
 // void normalize_in_log(float* m, int N);
 void cvtDistanceToSimilarity(float* m, int N);
-void setDiagToOne(float* m, int N);
 void print(FILE* fid, float* m, int N);
 
 int main (int argc, char* argv[]) {
@@ -28,7 +27,6 @@ int main (int argc, char* argv[]) {
 
   cmdParser
     .addGroup("Distance options")
-    .add("--scale", "log-scale (log) as distance or linear-scale (linear) as probability density", false, "log")
     .add("--type", "choose \"Euclidean (eu)\", \"Diagonal Manalanobis (ma)\", \"Log Inner Product (lip)\"")
     .add("--theta", "specify the file containing the diagnol term of Mahalanobis distance (dim=39)", false)
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-2");
@@ -46,7 +44,6 @@ int main (int argc, char* argv[]) {
   string theta_fn   = cmdParser.find("--theta");
   string dist_type  = cmdParser.find("--type");
   float eta	    = str2float(cmdParser.find("--eta"));
-  string scale	    = cmdParser.find("--scale");
 
   if (isSelfTest)
     selfTest();
@@ -60,19 +57,19 @@ int main (int argc, char* argv[]) {
 
   distance_fn* dist = initDistanceMeasure(dist_type, dim, theta_fn);
 
-  float* scores;
-  if (gpuEnabled)
+  float* scores = NULL;
+  if (gpuEnabled) {
+#ifdef __CUDACC__
     scores = computePairwiseDTW_in_gpu(data, offset, N, dim);
-  else
+#else
+    printf("GPU-version of Dynamic Time Warping is not supported. Please re-compile\n");
+#endif
+  }
+  else {
     scores = computePairwiseDTW(data, offset, N, dim, *dist, eta);
-
-  // print(stdout, scores, N);
+  }
 
   cvtDistanceToSimilarity(scores, N);
-  /*if (scale == "linear")
-    normalize(scores, N, eta);
-  else
-    normalize_in_log(scores, N);*/
 
   FILE* fid = (output_fn.empty()) ? stdout : fopen(output_fn.c_str(), "w");
   print(fid, scores, N);
@@ -108,8 +105,8 @@ distance_fn* initDistanceMeasure(string dist_type, size_t dim, string theta_fn) 
 }
 
 void print(FILE* fid, float* m, int N) {
-  range (i, N) {
-    range (j, N)
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<N; ++j)
       fprintf(fid, "%.6f ", m[i * N + j]);
     fprintf(fid, "\n");
   }
@@ -117,18 +114,12 @@ void print(FILE* fid, float* m, int N) {
 
 float calcError(float* s1, float* s2, int N) {
   float error = 0;
-  range (i, N)
-    range (j, N)
+  for (int i=0; i<N; ++i)
+    for (int j=0; j<N; ++j)
       error += pow(s1[i * N + j] - s2[i * N + j], 2.0);
 
   error /= N*N;
   return error;
-}
-
-
-void setDiagToOne(float* m, int N) {
-  range (i, N)
-    m[i * N + i] = 1;
 }
 
 void normalize(float* m, int N, float eta) {
@@ -137,8 +128,8 @@ void normalize(float* m, int N, float eta) {
   float min = m[0];
   float max = m[0];
 
-  range (i, N) {
-    range (j, N) {
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<N; ++j) {
       if (m[i * N + j] > max) max = m[i * N + j];
       if (m[i * N + j] < min) min = m[i * N + j];
     }
@@ -149,10 +140,10 @@ void normalize(float* m, int N, float eta) {
 
   float normalizer = MIN_EXP / (max - min) / abs(eta);
 
-  range (i, N*N)
+  for (int i=0; i<N*N; ++i)
     m[i] = (m[i] - min) * normalizer;
 
-  range (i, N*N)
+  for (int i=0; i<N*N; ++i)
     m[i] = exp(eta * m[i]);
 }
 
@@ -160,8 +151,8 @@ void cvtDistanceToSimilarity(float* m, int N) {
   float min = m[0];
   float max = m[0];
 
-  range (i, N) {
-    range (j, i) {
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<i; ++j) {
       if (m[i * N + j] > max) max = m[i * N + j];
       if (m[i * N + j] < min) min = m[i * N + j];
     }
@@ -172,10 +163,10 @@ void cvtDistanceToSimilarity(float* m, int N) {
   if (min - max == 0)
     return;
   
-  range (i, N)
+  for (int i=0; i<N; ++i)
     m[i*N + i] = min;
   
-  range (i, N*N)
+  for (int i=0; i<N*N; ++i)
     m[i] = abs((m[i] - max) / (min - max));
 }
 
@@ -184,8 +175,8 @@ void normalize_in_log(float* m, int N) {
   float min = m[0];
   float max = m[0];
 
-  range (i, N) {
-    range (j, i) {
+  for (int i=0; i<N; ++i) {
+    for (int j=0; j<i; ++j) {
       if (m[i * N + j] > max) max = m[i * N + j];
       if (m[i * N + j] < min) min = m[i * N + j];
     }
@@ -196,14 +187,16 @@ void normalize_in_log(float* m, int N) {
   if (min - max == 0)
     return;
   
-  range (i, N)
+  for (int i=0; i<N; ++i)
     m[i*N + i] = min;
   
-  range (i, N*N)
+  for (int i=0; i<N*N; ++i)
     m[i] = abs((m[i] - max) / (min - max));
 }
 
 void selfTest() {
+
+#ifdef __CUDACC__
   string archive_fn = "/media/Data1/hypothesis/SI_word.kaldi/mfcc/[A457][ADAD].39.ark";
 
   int N, dim; float* data; unsigned int* offset;
@@ -237,6 +230,7 @@ void selfTest() {
   printf(GREEN"===== Summary ====="COLOREND);
   float error = calcError(scores_from_cuda, scores, N);
   mylog(error);
+#endif
 
   exit(1);
 }
