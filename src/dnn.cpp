@@ -80,22 +80,8 @@ void DNN::randInit() {
 // ========================
 // ===== Feed Forward =====
 // ========================
-void DNN::feedForward(const vec& x, std::vector<vec>* hidden_output) {
-  assert(hidden_output != NULL);
 
-  std::vector<vec>& O = *hidden_output;
-  assert(O.size() == _dims.size());
-
-  O[0] = add_bias(x);
-
-  for (size_t i=1; i<O.size() - 1; ++i)
-    O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
-
-  size_t end = O.size() - 1;
-  O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
-}
-
-void DNN::feedForward(const mat& x, std::vector<mat>* hidden_output) {
+/*void DNN::feedForward(const mat& x, std::vector<mat>* hidden_output) {
   assert(hidden_output != NULL);
 
   std::vector<mat>& O = *hidden_output;
@@ -108,7 +94,7 @@ void DNN::feedForward(const mat& x, std::vector<mat>* hidden_output) {
 
   size_t end = O.size() - 1;
   O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
-}
+}*/
 
 // ============================
 // ===== Back Propagation =====
@@ -119,7 +105,7 @@ void DNN::backPropagate(vec& p, std::vector<vec>& O, std::vector<mat>& gradient)
 
   reverse_foreach (i, _weights) {
     gradient[i] = O[i] * p;
-    p = dsigma(O[i]) & (_weights[i] * p); // & stands for .* in MATLAB
+    p = dsigma(O[i]) & (p * ~_weights[i]); // & stands for .* in MATLAB
 
     // Remove bias
     remove_bias(p);

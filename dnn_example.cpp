@@ -18,7 +18,7 @@ void print(const std::vector<mat>& vm);
 
 int main (int argc, char* argv[]) {
 
-  // model_test();
+  model_test();
   dnn_test();
 
   return 0;
