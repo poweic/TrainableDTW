@@ -68,7 +68,7 @@ void SubCorpus::setFeatureDirectory(string mfcc_directory) {
 Corpus::Corpus(string filename, string feat_dir, string list_dir) {
 
   SubCorpus::setListDirectory(list_dir);
-  SubCorpus::setFeatureDirectory(feat_dir);
+  SubCorpus::setFeatureDirectory(feat_dir + "/");
 
   _phones = this->getPhoneList(filename);
 
