@@ -65,7 +65,7 @@ void SubCorpus::setFeatureDirectory(string mfcc_directory) {
 
 
 // ==============================================
-Corpus::Corpus(string filename, string feat_dir, string list_dir) {
+Corpus::Corpus(int phone_set, string filename, string feat_dir, string list_dir) {
 
   SubCorpus::setListDirectory(list_dir);
   SubCorpus::setFeatureDirectory(feat_dir + "/");
@@ -73,17 +73,17 @@ Corpus::Corpus(string filename, string feat_dir, string list_dir) {
   _phones = this->getPhoneList(filename);
 
   size_t size = 0;
-  // Load all lists for 74 phones
-  foreach (i, _phones) {
-    if (i <= 1 || i >= 38) continue;
-    foreach (j, _phones) {
-      if (j <= 1) continue;
-      if (j > i) break;
 
+  size_t begin = (phone_set == CHT_PHONE) ?  1: 37;
+  size_t  end  = (phone_set == CHT_PHONE) ? 37: _phones.size();
+
+  for (size_t i=begin; i < end; ++i) {
+    for (size_t j=begin; j <= i; ++j) {
       _sub_corpus.push_back(SubCorpus(i, j, _phones[i], _phones[j]));
       size += _sub_corpus.back().size();
     }
   }
+
   _size = size;
 
   _prior.resize(_sub_corpus.size());
