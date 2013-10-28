@@ -45,7 +45,8 @@ int main (int argc, char* argv[]) {
   cmdParser
     .addGroup("Training Corpus options:")
     .add("--feat-dim", "dimension of feature vector (ex: 39 for mfcc)", false, "39")
-    .add("--feat-dir", "root directory of feature files ex: data/mfcc/", false, "/share/mlp_posterior/gaussian_posterior_noprior_no_log/");
+    .add("--feat-dir", "root directory of feature files ex: data/mfcc/", false, "/share/mlp_posterior/gaussian_posterior_noprior_no_log/")
+    .add("--phone-set", "choose \"CHT\" or \"EN\" as phone set", false, "EN");
 
   cmdParser
     .addGroup("Deep Neural Network options:")
@@ -63,28 +64,31 @@ int main (int argc, char* argv[]) {
   // Parsering Command Arguments
   string phase = cmdParser.find("-p");
 
-  size_t batchSize	  = str2int(cmdParser.find("--batch-size"));
-  string feat_dir   	  = cmdParser.find("--feat-dir");
+  size_t batchSize	   = str2int(cmdParser.find("--batch-size"));
 
-  string phones_filename  = cmdParser.find("--phone-mapping");
-  Array<string> phones	  = getPhoneList(phones_filename);
+  string phones_filename   = cmdParser.find("--phone-mapping");
+  Array<string> phones	   = getPhoneList(phones_filename);
 
-  string matFile	  = cmdParser.find("-o");
-  double eta		  = str2double(cmdParser.find("--eta"));
-  float  lr		  = str2float(cmdParser.find("--learning-rate"));
-  size_t nHiddenLayer	  = str2int(cmdParser.find("--layers"));
-  size_t nHiddenNodes	  = str2int(cmdParser.find("--hidden-nodes"));
-  string m		  = cmdParser.find("--model");
-  string thetaFilename	  = cmdParser.find("--theta-output");
+  string matFile	   = cmdParser.find("-o");
+  double eta		   = str2double(cmdParser.find("--eta"));
+  float  lr		   = str2float(cmdParser.find("--learning-rate"));
+  size_t nHiddenLayer	   = str2int(cmdParser.find("--layers"));
+  size_t nHiddenNodes	   = str2int(cmdParser.find("--hidden-nodes"));
+  string m		   = cmdParser.find("--model");
+  string thetaFilename	   = cmdParser.find("--theta-output");
 
-  size_t feat_dim	  = str2int(cmdParser.find("--feat-dim"));
-  float intra_inter_weight= str2double(cmdParser.find("--weight"));
+  string feat_dir   	   = cmdParser.find("--feat-dir");
+  size_t feat_dim	   = str2int(cmdParser.find("--feat-dim"));
+  int phone_set		   = cmdParser.find("--phone-set") == "EN" ? EN_PHONE : CHT_PHONE;
+
+  float intra_inter_weight = str2double(cmdParser.find("--weight"));
 
   Profile profile;
   profile.tic();
 
   SMIN::eta = eta;
-  Corpus corpus("data/phones.txt", feat_dir);
+  
+  Corpus corpus(phone_set, "data/phones.txt", feat_dir);
 
   if (m == "dnn") {
     dtwdnn dnn(feat_dim, intra_inter_weight, lr, nHiddenLayer, nHiddenNodes);

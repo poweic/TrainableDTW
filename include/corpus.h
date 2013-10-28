@@ -5,6 +5,10 @@
 #include <vector>
 #include <array.h>
 #include <utility.h>
+
+#define CHT_PHONE 0
+#define EN_PHONE 1
+
 using namespace std;
 
 template <typename T>
@@ -50,7 +54,8 @@ typedef std::pair<ppair, bool> tsample;
 
 class Corpus: public ICorpus<tsample> {
 public:
-  Corpus(string filename,
+  Corpus(int phone_set,
+	 string filename,
 	 string feat_dir = "data/mfcc/",
 	 string list_dir = "data/train/list/");
 
