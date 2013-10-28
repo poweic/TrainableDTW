@@ -63,7 +63,13 @@ void chooseLargestGranularity(const string& path, Array<string>& lists, string f
     file_extension = "." + file_extension;
   
   foreach (i, lists) {
-    string filename = path + lists[i] + file_extension;
+    string filename = path + lists[i];
+    if (exists(filename)) {
+      lists[i] = filename;
+      continue;
+    }
+
+    filename += file_extension;
     if (exists(filename)) {
       lists[i] = filename;
       continue;
