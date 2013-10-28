@@ -19,3 +19,4 @@ kaldi-to-htk
 pair-wise-dtw
 htk-to-kaldi
 dtw-on-answer
+*.sh
