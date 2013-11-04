@@ -21,9 +21,12 @@ int main (int argc, char* argv[]) {
   CmdParser cmdParser(argc, argv);
   cmdParser
     .add("--ark", "input feature archive")
-    .add("-o", "output filename for the acoustic similarity matrix", false)
+    .add("-o", "output filename for the acoustic similarity matrix", false);
+#ifdef __CUDACC__
+  cmdParser
     .add("--gpu-enabled", "set to \"true\" to turn on gpu-acceleration", false, "false")
     .add("--self-test", "Perform a self test by calculating the error between GPU & CPU", false, "false");
+#endif
 
   cmdParser
     .addGroup("Distance options")
@@ -32,14 +35,17 @@ int main (int argc, char* argv[]) {
     .add("--eta", "Specify the coefficient in the smoothing minimum", false, "-2");
 
   cmdParser
-    .addGroup("Example: ./pair-wise-dtw --ark=data/example.76.ark --type=ma --theta=exp/theta/theta.rand.good");
+    .addGroup("Example: ./pair-wise-dtw --ark=data/example.76.ark --type=eu")
+    .addGroup("Example: ./pair-wise-dtw --ark=data/example.76.ark --type=ma --theta=<some-trained-theta>");
   
   if(!cmdParser.isOptionLegal())
     cmdParser.showUsageAndExit();
 
   string archive_fn = cmdParser.find("--ark");
   string output_fn  = cmdParser.find("-o");
+#ifdef __CUDACC__
   bool gpuEnabled   = (cmdParser.find("--gpu-enabled") == "true");
+#endif
   bool isSelfTest   = (cmdParser.find("--self-test") == "true");
   string theta_fn   = cmdParser.find("--theta");
   string dist_type  = cmdParser.find("--type");
@@ -58,16 +64,13 @@ int main (int argc, char* argv[]) {
   distance_fn* dist = initDistanceMeasure(dist_type, dim, theta_fn);
 
   float* scores = NULL;
-  if (gpuEnabled) {
 #ifdef __CUDACC__
+  if (gpuEnabled)
     scores = computePairwiseDTW_in_gpu(data, offset, N, dim);
+  else
 #else
-    printf("GPU-version of Dynamic Time Warping is not supported. Please re-compile\n");
-#endif
-  }
-  else {
     scores = computePairwiseDTW(data, offset, N, dim, *dist, eta);
-  }
+#endif
 
   cvtDistanceToSimilarity(scores, N);
 

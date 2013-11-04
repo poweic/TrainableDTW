@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <cdtw.h>
-#include <dnn.h>
+#include <model.h>
 #include <corpus.h>
 #include <perf.h>
 

@@ -38,11 +38,29 @@ public:
   void load(string folder);
 
   void randInit();
-  void feedForward(const vec& x, std::vector<vec>* hidden_output);
-  void feedForward(const mat& x, std::vector<mat>* hidden_output);
+  /*void feedForward(const vec& x, std::vector<vec>* hidden_output);
+  void feedForward(const mat& x, std::vector<mat>* hidden_output);*/
+
+  template <typename T>
+  void feedForward(const T& x, std::vector<T>* hidden_output) {
+    assert(hidden_output != NULL);
+
+    std::vector<T>& O = *hidden_output;
+    assert(O.size() == _dims.size());
+
+    O[0] = add_bias(x);
+
+    for (size_t i=1; i<O.size() - 1; ++i)
+      O[i] = ext::b_sigmoid(O[i-1] * _weights[i-1]);
+
+    size_t end = O.size() - 1;
+    O.back() = ext::sigmoid(O[end - 1] * _weights[end - 1]);
+  }
 
   void backPropagate(vec& p, std::vector<vec>& hidden_output, std::vector<mat>& gradient);
   void backPropagate(mat& p, std::vector<mat>& hidden_output, std::vector<mat>& gradient, const vec& coeff);
+
+  void updateParameters(std::vector<mat>& gradient, float learning_rate = 1e-3);
 
   size_t getNLayer() const;
   size_t getDepth() const;
@@ -101,59 +119,39 @@ class GRADIENT {
 
 void swap(GRADIENT& lhs, GRADIENT& rhs);
 
-class Model {
-public:
+template <typename T>
+vector<T> add_bias(const vector<T>& v) {
+  vector<T> vb(v.size() + 1);
+  WHERE::copy(v.begin(), v.end(), vb.begin());
+  vb.back() = 1.0;
+  return vb;
+}
 
-  Model();
-  Model(const std::vector<size_t>& pp_dim, const std::vector<size_t>& dtw_dim);
-  Model(const Model& src);
-  Model& operator = (Model rhs);
+template <typename T>
+void remove_bias(vector<T>& v) {
+  v.pop_back();
+}
 
-  void load(string folder);
-  void initHiddenOutputAndGradient();
+template <typename T>
+Matrix2D<T> add_bias(const Matrix2D<T>& A) {
+  Matrix2D<T> B(A.getRows(), A.getCols() + 1);
+  range (i, B.getRows()) {
+    range (j, B.getCols())
+      B[i][j] = A[i][j];
+    B[i][B.getCols()] = 1;
+  }
+  return B;
+}
 
-  void train(const vec& x, const vec& y);
-  float evaluate(const vec& x, const vec& y);
-  float evaluate(const float* x, const float* y);
-  void calcGradient(const vec& x, const vec& y);
-  void calcGradient(const float* x, const float* y);
-  void updateParameters(GRADIENT& g);
-  void setLearningRate(float learning_rate);
+template <typename T>
+void remove_bias(Matrix2D<T>& A) {
+  Matrix2D<T> B(A.getRows(), A.getCols() - 1);
+  range (i, B.getRows())
+    range (j, B.getCols())
+      B[i][j] = A[i][j];
 
-  HIDDEN_OUTPUT& getHiddenOutput();
-  GRADIENT& getGradient();
-  void getEmptyGradient(GRADIENT& g);
-  void save(string folder) const;
-  void print() const;
+  A = B;
+}
 
-  friend void swap(Model& lhs, Model& rhs);
- 
-private:
-  HIDDEN_OUTPUT hidden_output;
-  GRADIENT gradient;
-
-  float _lr;
-
-  vec _w;
-  DNN _pp;
-  DNN _dtw;
-};
-
-void swap(Model& lhs, Model& rhs);
-
-GRADIENT& operator += (GRADIENT& g1, const GRADIENT& g2);
-GRADIENT& operator -= (GRADIENT& g1, const GRADIENT& g2);
-GRADIENT& operator *= (GRADIENT& g, float c);
-GRADIENT& operator /= (GRADIENT& g, float c);
-
-GRADIENT operator + (GRADIENT g1, const GRADIENT& g2);
-GRADIENT operator - (GRADIENT g1, const GRADIENT& g2);
-GRADIENT operator * (GRADIENT g, float c);
-GRADIENT operator * (float c, GRADIENT g);
-GRADIENT operator / (GRADIENT g, float c);
-
-//bool hasNAN(GRADIENT& g);
-void print(GRADIENT& g);
-//float sum(GRADIENT& g);
 
 #endif  // __DNN_H_

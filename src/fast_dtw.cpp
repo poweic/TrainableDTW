@@ -106,7 +106,7 @@ float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, fl
   if (isAlphaNull)
     alpha = new float[rows * cols];
 
-  // ===== Begin of Main =====
+  // Calculate Alpha
   // x == y == 0 
   alpha[0] = pdist[0];
 
@@ -126,8 +126,8 @@ float fast_dtw(float* pdist, size_t rows, size_t cols, size_t dim, float eta, fl
   }
 
   distance = alpha[rows * cols - 1];
-  // ====== End of Main ======
 
+  // Calculate Beta in Forward-Backward (if neccessary)
   if (beta != NULL) {
     beta[rows * cols - 1] = 0;
     size_t x, y;
@@ -327,142 +327,3 @@ StreamManager::~StreamManager() {
     CCE(cudaStreamDestroy(_stream[i]));
 }
 #endif
-
-/*extern "C" __global__
-void dtwKernel(float* distance, const float* f1, const float* f2, size_t w, size_t h, size_t dim, float eta, float* pdist, float* alpha, float* beta) {
-
-  // y == x == 0 
-  alpha[0] = pdist[0];
-
-  // x == 0
-  for (int y = 1; y < h; ++y)
-    alpha[y * w] = alpha[(y-1) * w] + pdist[y * w];
-
-  // y == 0
-  for (int x = 1; x < w; ++x)
-    alpha[x] = alpha[x-1] + pdist[x];
-
-  float temp;
-  // interior points
-  for (int y = 1; y < h; ++y) {
-    for (int x = 1; x < w; ++x) {
-      temp = fmin(alpha[(y-1) * w + x], alpha[y * w + x-1]);
-      alpha[y * w + x] = fmin(temp, alpha[(y-1) * w + x-1]) + pdist[y * w + x];
-      //alpha[y * w + x] = (float) smin(alpha[(y-1) * w + x], alpha[y * w + x-1], alpha[(y-1) * w + x-1], eta) + pdist[y * w + x];
-    }
-  }
-
-  *distance = alpha[h * w - 1];
-}*/
-
-/*float fast_dtw(const float* const* f1, const float* const* f2, size_t rows, size_t cols, size_t dim, float eta, float** pdist, float** alpha, float** beta) {
-
-  float distance = 0;
-
-  bool isAlphaNull = (alpha == NULL),
-       isBetaNull  = (beta  == NULL),
-       isPdistNull = (pdist == NULL);
-
-  if (isAlphaNull)
-    alpha = malloc2D(rows, cols);
-
-  if (isPdistNull)
-    pdist = malloc2D(rows, cols);
-  // ===== Pre-calculate Pair-Wise Distance "pdist" =====
-  for (int x = 0; x < rows; ++x)
-    for (int y = 0; y < cols; ++y)
-      pdist[x][y] = euclidean(f1[x], f2[y], dim);
-
-  // ===== Begin of Main =====
-  // x == y == 0 
-  alpha[0][0] = pdist[0][0];
-
-  // y == 0
-  for (int x = 1; x < rows; ++x)
-    alpha[x][0] = alpha[x-1][0] + pdist[x][0];
-
-  // x == 0
-  for (int y = 1; y < cols; ++y)
-    alpha[0][y] = alpha[0][y-1] + pdist[0][y];
-
-  // interior points
-  for (int x = 1; x < rows; ++x)
-    for (int y = 1; y < cols; ++y)
-      alpha[x][y] = (float) smin(alpha[x-1][y], alpha[x][y-1], alpha[x-1][y-1], eta) + pdist[x][y];
-
-  distance = alpha[rows - 1][cols - 1];
-  // ====== End of Main ======
-  
-  if (beta != NULL) {
-    // TODO
-  }
-  
-  if (isAlphaNull)
-    free2D(alpha, rows);
-
-  if (isPdistNull)
-    free2D(pdist, rows);
-
-  return distance;
-}
-
-void loadKaldiArchive(string filename, vector<float**> &data, vector<size_t> &lengths, int &N, int &dim) {
-
-  vector<FeatureSeq> featureSeqs;
-
-  FILE* fptr = fopen(filename.c_str(), "r");
-  vulcan::VulcanUtterance vUtterance;
-  while (vUtterance.LoadKaldi(fptr))
-    featureSeqs.push_back(vUtterance._feature);
-  fclose(fptr);
-
-  dim = featureSeqs[0][0].size();
-  N = featureSeqs.size();
-  lengths.resize(N);
-  data.resize(N);
-
-  range (i, N) {
-    size_t length = featureSeqs[i].size();
-    lengths[i] = length;
-
-    data[i] = new float*[length];
-    range (j, length) {
-      data[i][j] = new float[dim];
-
-      range(k, dim)
-	data[i][j][k] = featureSeqs[i][j]._data->data[k];
-    }
-  }
-}
-
-void computePairwiseDTW(string filename, float** &scores, int& N) {
-
-  int dim;
-  vector<float**> data;
-  vector<size_t> lengths;
-  loadKaldiArchive(filename, data, lengths, N, dim);
-
-  const size_t MAX_ROWS = 256;
-  const size_t MAX_COLS = 256;
-
-  float** alpha = malloc2D(MAX_ROWS, MAX_COLS);
-  float** pdist = malloc2D(MAX_ROWS, MAX_COLS);
-
-  scores = malloc2D(N, N);
-
-  range (i, N) {
-    range (j, i) {
-      size_t rows = lengths[i];
-      size_t cols = lengths[j];
-      float s = fast_dtw(data[i], data[j], rows, cols, dim, -4, alpha);
-      scores[i][j] = scores[j][i] = s;
-    }
-  }
-
-  free2D(alpha, MAX_ROWS);
-  free2D(pdist, MAX_ROWS);
-
-  range (i, N)
-    free2D(data[i], lengths[i]);
-}*/
-
